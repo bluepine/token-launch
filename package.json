@@ -1,5 +1,15 @@
 {
   "dependencies": {
-    "zeppelin-solidity": "^1.0.7"
+    "zeppelin-solidity": "^1.0.7",
+    "truffle": "3.2.2"
+  },
+  "main": "truffle.js",
+  "scripts": {
+    "test": "scripts/test.sh",
+    "coverage": "scripts/coverage.sh"
+  },
+  "devDependencies": {
+    "ethereumjs-testrpc": "^3.0.5",
+    "solidity-coverage": "^0.1.3"
   }
 }

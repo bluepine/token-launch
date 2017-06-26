@@ -329,13 +329,13 @@ contract MultiSigWallet {
 
     /// @dev Returns list of owners
     /// @return List of owner addresses
-    function getOwners()
-        public
-        constant
-        returns (address[])
-    {
-        return owners;
-    }
+    // function getOwners()
+    //     public
+    //     constant
+    //     returns (address[] )
+    // {
+    //     return owners;
+    // }
 
     /// @dev Returns array with owner addresses, which confirmed transaction
     /// @param transactionId Transaction ID

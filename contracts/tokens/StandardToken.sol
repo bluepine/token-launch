@@ -1,65 +1,89 @@
-pragma solidity ^0.4.11;
+pragma solidity 0.4.11;
+import "./AbstractToken.sol";
 
 
-import './BasicToken.sol';
-import './ERC20.sol';
+/// @title Standard token contract - Standard token interface implementation
+contract StandardToken is Token {
 
+    /*
+     *  Storage
+     */
+    mapping (address => uint) balances;
+    mapping (address => mapping (address => uint)) allowances;
+    uint public totalSupply;
 
-/**
- * @title Standard ERC20 token
- *
- * @dev Implemantation of the basic standart token.
- * @dev https://github.com/ethereum/EIPs/issues/20
- * @dev Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
- */
-contract StandardToken is BasicToken, ERC20 {
+    /*
+     *  Public functions
+     */
+    /// @dev Transfers sender's tokens to a given address. Returns success
+    /// @param to Address of token receiver
+    /// @param value Number of tokens to transfer
+    /// @return Returns success of function call
+    function transfer(address to, uint value)
+        public
+        returns (bool)
+    {
+        if (balances[msg.sender] < value)
+            // Balance too low
+            revert();
+        balances[msg.sender] -= value;
+        balances[to] += value;
+        Transfer(msg.sender, to, value);
+        return true;
+    }
 
-  mapping (address => mapping (address => uint)) allowed;
+    /// @dev Allows allowed third party to transfer tokens from one address to another. Returns success
+    /// @param from Address from where tokens are withdrawn
+    /// @param to Address to where tokens are sent
+    /// @param value Number of tokens to transfer
+    /// @return Returns success of function call
+    function transferFrom(address from, address to, uint value)
+        public
+        returns (bool)
+    {
+        if (balances[from] < value || allowances[from][msg.sender] < value)
+            // Balance or allowance too low
+            revert();
+        balances[to] += value;
+        balances[from] -= value;
+        allowances[from][msg.sender] -= value;
+        Transfer(from, to, value);
+        return true;
+    }
 
+    /// @dev Sets approved amount of tokens for spender. Returns success
+    /// @param _spender Address of allowed account
+    /// @param value Number of approved tokens
+    /// @return Returns success of function call
+    function approve(address _spender, uint value)
+        public
+        returns (bool)
+    {
+        allowances[msg.sender][_spender] = value;
+        Approval(msg.sender, _spender, value);
+        return true;
+    }
 
-  /**
-   * @dev Transfer tokens from one address to another
-   * @param _from address The address which you want to send tokens from
-   * @param _to address The address which you want to transfer to
-   * @param _value uint the amout of tokens to be transfered
-   */
-  function transferFrom(address _from, address _to, uint _value) onlyPayloadSize(3 * 32) {
-    var _allowance = allowed[_from][msg.sender];
+    /// @dev Returns number of allowed tokens for given address
+    /// @param _owner Address of token owner
+    /// @param _spender Address of token spender
+    /// @return Returns remaining allowance for spender
+    function allowance(address _owner, address _spender)
+        public
+        constant
+        returns (uint)
+    {
+        return allowances[_owner][_spender];
+    }
 
-    // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
-    // if (_value > _allowance) throw;
-
-    balances[_to] = balances[_to].add(_value);
-    balances[_from] = balances[_from].sub(_value);
-    allowed[_from][msg.sender] = _allowance.sub(_value);
-    Transfer(_from, _to, _value);
-  }
-
-  /**
-   * @dev Aprove the passed address to spend the specified amount of tokens on beahlf of msg.sender.
-   * @param _spender The address which will spend the funds.
-   * @param _value The amount of tokens to be spent.
-   */
-  function approve(address _spender, uint _value) {
-
-    // To change the approve amount you first have to reduce the addresses`
-    //  allowance to zero by calling `approve(_spender, 0)` if it is not
-    //  already 0 to mitigate the race condition described here:
-    //  https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-    if ((_value != 0) && (allowed[msg.sender][_spender] != 0)) throw;
-
-    allowed[msg.sender][_spender] = _value;
-    Approval(msg.sender, _spender, _value);
-  }
-
-  /**
-   * @dev Function to check the amount of tokens than an owner allowed to a spender.
-   * @param _owner address The address which owns the funds.
-   * @param _spender address The address which will spend the funds.
-   * @return A uint specifing the amount of tokens still avaible for the spender.
-   */
-  function allowance(address _owner, address _spender) constant returns (uint remaining) {
-    return allowed[_owner][_spender];
-  }
-
+    /// @dev Returns number of tokens owned by given address
+    /// @param _owner Address of token owner
+    /// @return Returns balance of owner
+    function balanceOf(address _owner)
+        public
+        constant
+        returns (uint)
+    {
+        return balances[_owner];
+    }
 }

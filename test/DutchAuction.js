@@ -1,6 +1,7 @@
 const assertJump = require('./helpers/assertJump');
 const nextBlock = require('./helpers/nextBlock');
-var BigNumber = require('bignumber.js');
+const timer = require('./helpers/timer');
+const BigNumber = require('bignumber.js');
 
 // var MultiSigWallet = artifacts.require("./Wallets/MultiSigWallet.sol");
 var DutchAction = artifacts.require("./DutchAuction/DutchAuction.sol");
@@ -25,6 +26,7 @@ contract('DutchAuction',
     let currentBlock;
     let startBlock;
     let tokenPrice;
+    let currentStage;
 
     let dutchAuction;
     let omegaToken;
@@ -148,7 +150,6 @@ contract('DutchAuction',
         try {
           await dutchAuction.bid(dutchAuction.address, {value: value2})
         } catch(error) {
-          console.log(error);
           return assertJump(error);
         }
         assert.fail('should have thrown before');
@@ -191,32 +192,69 @@ contract('DutchAuction',
     );
 
     it(
-      'Spender places a bid in the name of bidder 3',
+      'Spender places a bid in the name of bidder 3 finishing the auction',
       async () =>
       {
         let bidder3 = accounts[3];
+        let initialBalance3 = web3.eth.getBalance(bidder3);
         let value1 = 100000 * 10 ** 18;  // 100k Ether
         let value2 = 100000 * 10 ** 18;  // 100k Ether
         let value3 = 100000 * 10 ** 18;  // 100k Ether
 
-        await dutchAuction.bid(bidder2, {value: value2})
+        await dutchAuction.bid(bidder3, {value: value3})
         let stopPrice = await dutchAuction.calcStopPrice();
+        let finalPrice =  await dutchAuction.finalPrice();
         let totalReceived = await dutchAuction.totalReceived();
         tokenPrice = await dutchAuction.calcTokenPrice();
+        currentBalance3 = web3.eth.getBalance(bidder3);
         currentBlock = web3.eth.blockNumber;
+        currentStage = await dutchAuction.stage();
 
-        assert.equal(stopPrice, (value1 + value2) / MAX_TOKENS_SOLD + 1);
-        assert.equal(totalReceived, value1 + value2);
-        assert.equal(tokenPrice, PRICE_FACTOR * 10 ** 18 / (currentBlock - startBlock + 7500) + 1);
+        refundBidder3 = value3*.6
+        // Verifies that bidder3 received a refund
+        assert.equal(currentBalance3 - value3, initialBalance3 - refundBidder3);
+        assert.equal(stopPrice, new BigNumber(totalReceived).dividedBy(MAX_TOKENS_SOLD).toNumber() + 1);
+        // Final price is equal to stop price
+        assert.equal(finalPrice, tokenPrice.toNumber());
+        assert.equal(web3.eth.getBalance(dutchAuction.address), 0);
+        assert.equal(currentStage, 3);
       }
     );
+
+    it(
+      'Once auction is over, trading cannot begin for 1 week',
+      async () =>
+      {
+        let bidder3 = accounts[3];
+        let days = 6;
+        await timer(days);
+        try {
+          await dutchAuction.claimTokens(accounts[3]);
+        } catch(error) {
+          return assertJump(error);
+        }
+        assert.fail('should have thrown before');
+      }
+    ); 
+
+    it(
+      'After 1 week buyers are able claim their tokens to trading begins',
+      async () =>
+      {
+        let finalPrice = await dutchAuction.finalPrice();
+        let bidder1 = accounts[0];
+        let value1 = 100000 * 10 ** 18;  // 100k Ether;
+        let days = 1;
+        await timer(days);
+
+        await dutchAuction.claimTokens(bidder1);
+        let bidder1Balance = await omegaToken.balanceOf(bidder1);
+        currentStage = await dutchAuction.stage();
+
+        assert.equal(bidder1Balance, value1 * 10 ** 18 / finalPrice);
+        assert.equal(currentStage, 4);
+      }
+    );
+
+
 });
-
-
-// web3.currentProvider.sendAsync({
-//   jsonrpc: "2.0",
-//   method: "evm_increaseTime",
-//   params: [86400],  // 86400 seconds in a day
-//   id: new Date().getTime()
-// }, callback);
-// Save into

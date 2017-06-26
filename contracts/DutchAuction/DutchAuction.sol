@@ -1,5 +1,6 @@
 pragma solidity 0.4.11;
 import "../Tokens/AbstractToken.sol";
+import "../CrowdsaleController.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
 /// @author Karl - <your email here>
@@ -14,13 +15,14 @@ contract DutchAuction {
     /*
      *  Constants
      */
-    uint256 constant public MAX_TOKENS_SOLD = 2000000 * 10**18; // 300g
+    uint256 constant public MAX_TOKENS_SOLD = 2000000 * 10**18; // 2M
     uint256 constant public WAITING_PERIOD = 7 days;
 
     /*
      *  Storage
      */
     Token public omegaToken;
+    address public crowdsaleController; //new
     address public wallet;
     address public owner;
     uint256 public ceiling;
@@ -90,13 +92,15 @@ contract DutchAuction {
     /// @param _priceFactor Auction price factor
 
     /* add in controller address */
-    function DutchAuction(address _wallet, uint256 _ceiling, uint256 _priceFactor)
+    function DutchAuction(address _crowdsaleController, address _wallet, uint256 _ceiling, uint256 _priceFactor)
         public
     {
-        if (_wallet == 0 || _ceiling == 0 || _priceFactor == 0)
+        if (_wallet == 0x0 || _ceiling == 0x0 || 
+            _priceFactor == 0x0 || _crowdsaleController == 0x0)
             // Arguments are null
             revert();
         owner = msg.sender;
+        crowdsaleController = _crowdsaleController;
         wallet = _wallet;
         ceiling = _ceiling;
         priceFactor = _priceFactor;
@@ -110,6 +114,7 @@ contract DutchAuction {
         isOwner
         atStage(Stages.AuctionDeployed)
     {
+        // require(stage == Stages.AuctionDeployed);
         if (address(_omegaToken) == 0x0)
             // Argument is null
             revert();
@@ -178,6 +183,7 @@ contract DutchAuction {
         if (receiver == 0x0)
             receiver = msg.sender;
         amount = msg.value;
+        require(amount > 0);
         // Prevent that more than 90% of tokens are sold. Only relevant if cap not reached
         uint maxWei = (MAX_TOKENS_SOLD / 10**18) * calcTokenPrice() - totalReceived;
         uint maxWeiBasedOnTotalReceived = ceiling - totalReceived;
@@ -247,7 +253,7 @@ contract DutchAuction {
             finalPrice = calcStopPrice();
         uint256 soldTokens = totalReceived * 10**18 / finalPrice;
         // Auction contract transfers all unsold tokens to Omega inventory multisig
-        omegaToken.transfer(wallet, MAX_TOKENS_SOLD - soldTokens);
+        omegaToken.transfer(crowdsaleController, MAX_TOKENS_SOLD - soldTokens);
         endTime = now;
     }
 }

@@ -12,30 +12,25 @@ contract OmegaToken is StandardToken {
     string public symbol = "OM";
     uint8 public constant decimals = 18;
 
-    function OmegaToken(address dutchAuction) 
+//implement presale later
+    function OmegaToken(address dutchAuction, address omegaMultisig) 
         public
     {
-        if (dutchAuction == 0x0)
-            // Address should not be null
+        if (dutchAuction  == 0x0 || omegaMultisig == 0x0)
+            // Addresses should not be null
             revert();
-        uint256 totalSupply = 10000000 * 10**18;
-        balances[dutchAuction] = 300000 * 10**18;
-        // omegaToken.balances[fixed_price]  = totalSupply * .27;
-        // omegaToken.balances[presale]      = totalSupply * .05;
-        // omegaToken.balances[team]         = totalSupply * .6;
-        // omegaToken.balances[company]      = totalSupply * .05;
+        uint256 totalSupply     = 9000000 * 10**18;
+        balances[dutchAuction]  = 2000000 * 10**18;
         Transfer(0, dutchAuction, balances[dutchAuction]);
         uint256 assignedTokens = balances[dutchAuction];
-        // for (uint256 i = 0; i<owners.length; i++) {
-        //     if (owners[i] == 0x0)
-        //         // Address should not be null
-        //         revert();
-        //     balances[owners[i]] += tokens[i];
-        //     Transfer(0x0, owners[i], tokens[i]);
-        //     assignedTokens += tokens[i];
-        // }
+        // balances[presale]       = 100000 * 10**18;
+        // Transfer(0, presale, balances[presale]);
+        // assignedTokens += balances[presale]
+        balances[omegaMultisig] = 7000000 * 10**18;
+        Transfer(0, omegaMultisig, balances[omegaMultisig]);
+        assignedTokens += balances[omegaMultisig];
+
         if (assignedTokens != totalSupply)
             revert();
-        
     }
 }
