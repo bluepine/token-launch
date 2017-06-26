@@ -8,8 +8,8 @@ contract OmegaToken is StandardToken {
     /*
      *  Constants
      */
-    string public name = "Omega Token";
-    string public symbol = "OM";
+    string public constant name = "Omega Token";
+    string public constant symbol = "OM";
     uint8 public constant decimals = 18;
 
 //implement presale later
@@ -19,7 +19,7 @@ contract OmegaToken is StandardToken {
         if (dutchAuction  == 0x0 || omegaMultisig == 0x0)
             // Addresses should not be null
             revert();
-        uint256 totalSupply     = 9000000 * 10**18;
+        totalSupply     = 9000000 * 10**18;
         balances[dutchAuction]  = 2000000 * 10**18;
         Transfer(0, dutchAuction, balances[dutchAuction]);
         uint256 assignedTokens = balances[dutchAuction];

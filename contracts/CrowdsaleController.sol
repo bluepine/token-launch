@@ -2,6 +2,8 @@ pragma solidity 0.4.11;
 import './Wallets/MultiSigWallet.sol';
 import './DutchAuction/DutchAuction.sol';
 import './Tokens/OmegaToken.sol';
+/// I'm gonna need Abstract Dutch
+/// I'm gonna need Abstract OpenWindow
 
 contract CrowdsaleController {
 
@@ -12,6 +14,16 @@ contract CrowdsaleController {
     DutchAuction dutchAuction;
     OmegaToken omegaToken;
     address public owner;
+
+    enum Stages {
+        Setup,
+        Presale,
+        MainSale,
+        OpenWindow,
+        SaleEnded,
+        TradingStarted
+    }
+
 
     /*
      *  Modifiers
@@ -24,15 +36,31 @@ contract CrowdsaleController {
         _;
     }
 
-    modifier isDutchAuction() {
-        if (msg.sender != address(dutchAuction))
-            // Only dutch auction is allowed to proceed
+    modifier atStage(Stages _stage) {
+        if (stage != _stage) {
+            // Contract not in expected state
             revert();
+        }
         _;
     }
 
+
+    /// @dev Fallback function allows to buy tokens and transfer tokens later on
+    function () 
+        payable
+    {
+        if (msg.sender == address(dutchAuction))
+            RefundReceived(this, msg.value);
+        else if (stage == Stages.MainSale || stage == Stages.OpenWindow)
+            fillOrMarket(msg.sender);
+        else if (stage == Stages.TokensClaimed)
+            transferTokens();
+        else
+            revert();
+    }
+
     /// @param _multiSigWallet Omega multisig wallet
-    function CrowdsaleController(address _multiSigWallet) {
+    function CrowdsaleController(address _multiSigWallet, Dutchauction _dutchAuction) {
         //initialize gateway to both contracts
         if (address(_multiSigWallet) == 0x0)
             // Argument is null
@@ -43,14 +71,26 @@ contract CrowdsaleController {
         omegaToken = new OmegaToken(address(dutchAuction), omegaMultiSig);
     }
 
-    
-    // function setup() 
-    //     public
-    //     isOwner
-    // {
-    //     dutchAuction.setup(omegaToken);
-    // }
 
+    function fillOrMarket(address receiver) 
+        public
+        payable
+    {
+        // If a bid is done on behalf of a user via ShapeShift, the receiver address is set
+        if (receiver == 0x0)
+            receiver = msg.sender;
+        uint256 amount = msg.value;
+        if (stage = Stages.MainSale) 
+            dutchAuction.bid.value(amount));
+        else if (stage = Stages.OpenWindow)
+            openWindow.buy.value(amount);
+        else
+            revert();
+    };
+
+    
+
+    //put this in OpenWindow contract
     /// @param tokensLeft Amount of tokens left after reverse dutch action
     /// @param finalPrice The price the reverse dutch auction ended at
     // function sellRemaining(uint256 tokensLeft, uint256 finalPrice) 

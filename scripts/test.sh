@@ -18,7 +18,7 @@ if [ ! $trpc_running ]; then
   > /dev/null &
   trpc_pid=$!
 fi
-./node_modules/truffle/cli.js test -r blanket -R html-cov > coverage.html
+./node_modules/truffle/cli.js test
 if [ ! $trpc_running ]; then
   kill -9 $trpc_pid
 fi

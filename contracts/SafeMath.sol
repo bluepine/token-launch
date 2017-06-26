@@ -2,6 +2,7 @@ pragma solidity ^0.4.11;
 
 
 /**
+ * Credits to Open Zeppelin
  * Math operations with safety checks
  */
 library SafeMath {

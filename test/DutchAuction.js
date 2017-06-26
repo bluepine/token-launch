@@ -238,13 +238,13 @@ contract('DutchAuction',
     ); 
 
     it(
-      'After 1 week buyers are able claim their tokens to trading begins',
+      'After 1 week buyers are able claim their tokens and trading begins',
       async () =>
       {
         let finalPrice = await dutchAuction.finalPrice();
         let bidder1 = accounts[0];
         let value1 = 100000 * 10 ** 18;  // 100k Ether;
-        let days = 1;
+        let days = 2;
         await timer(days);
 
         await dutchAuction.claimTokens(bidder1);
