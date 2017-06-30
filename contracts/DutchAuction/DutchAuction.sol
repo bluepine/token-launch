@@ -22,7 +22,7 @@ contract DutchAuction {
      *  Storage
      */
     Token public omegaToken;
-    address public crowdsaleController; //new
+    CrowdsaleController public crowdsaleController;
     address public wallet;
     address public owner;
     uint256 public ceiling;
@@ -92,15 +92,14 @@ contract DutchAuction {
     /// @param _priceFactor Auction price factor
 
     /* add in controller address */
-    function DutchAuction(address _crowdsaleController, address _wallet, uint256 _ceiling, uint256 _priceFactor)
+    function DutchAuction(address _wallet, uint256 _ceiling, uint256 _priceFactor)
         public
     {
         if (_wallet == 0x0 || _ceiling == 0x0 || 
-            _priceFactor == 0x0 || _crowdsaleController == 0x0)
+            _priceFactor == 0x0)
             // Arguments are null
             revert();
         owner = msg.sender;
-        crowdsaleController = _crowdsaleController;
         wallet = _wallet;
         ceiling = _ceiling;
         priceFactor = _priceFactor;
@@ -109,16 +108,16 @@ contract DutchAuction {
 
     /// @dev Setup function sets external contracts' addresses
     /// @param _omegaToken Omega token address
-    function setup(Token _omegaToken)
+    function setup(Token _omegaToken, CrowdsaleController _crowdsaleController)
         public
         isOwner
         atStage(Stages.AuctionDeployed)
-    {
-        // require(stage == Stages.AuctionDeployed);
-        if (address(_omegaToken) == 0x0)
+{
+        if (address(_omegaToken) == 0x0 || address(_crowdsaleController) == 0x0)
             // Argument is null
             revert();
         omegaToken = _omegaToken;
+        crowdsaleController = _crowdsaleController;
         // Validate token balance
         if (omegaToken.balanceOf(this) != MAX_TOKENS_SOLD)
             revert();
@@ -190,18 +189,18 @@ contract DutchAuction {
         if (maxWeiBasedOnTotalReceived < maxWei)
             maxWei = maxWeiBasedOnTotalReceived;
         // Only invest maximum possible amount
-        if (amount > maxWei) {
+        if (amount > maxWei)
             amount = maxWei;
-            // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
-            receiver.transfer(msg.value - amount);
-        }
         // Forward funding to ether wallet
         wallet.transfer(amount);
         bids[receiver] += amount;
         totalReceived += amount;
-        if (maxWei == amount)
+        if (amount == maxWei) {
             // When maxWei is equal to the big amount the auction is ended and finalizeAuction is triggered
             finalizeAuction();
+            // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
+            receiver.transfer(msg.value - amount);
+        }
         BidSubmission(receiver, amount);
     }
 
@@ -213,9 +212,7 @@ contract DutchAuction {
         timedTransitions
         atStage(Stages.TradingStarted)
     {
-        if (receiver == 0x0)
-            receiver = msg.sender;
-        uint tokenCount = bids[receiver] * 10**18 / finalPrice;
+        uint256 tokenCount = bids[receiver] * 10**18 / finalPrice;
         bids[receiver] = 0;
         omegaToken.transfer(receiver, tokenCount);
     }
@@ -247,13 +244,15 @@ contract DutchAuction {
         private
     {
         stage = Stages.AuctionEnded;
-        if (totalReceived == ceiling)
+        if (totalReceived == ceiling) {
             finalPrice = calcTokenPrice();
-        else
+        } else {
             finalPrice = calcStopPrice();
-        uint256 soldTokens = totalReceived * 10**18 / finalPrice;
-        // Auction contract transfers all unsold tokens to Omega inventory multisig
-        omegaToken.transfer(crowdsaleController, MAX_TOKENS_SOLD - soldTokens);
+            // Auction contract transfers all unsold tokens to Omega inventory multisig
+            uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
+            omegaToken.transfer(address(crowdsaleController),  tokensLeft);
+            crowdsaleController.startOpenWindow(tokensLeft, finalPrice);
+        }
         endTime = now;
     }
 }

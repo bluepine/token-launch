@@ -4,8 +4,9 @@ const timer = require('./helpers/timer');
 const BigNumber = require('bignumber.js');
 
 // var MultiSigWallet = artifacts.require("./Wallets/MultiSigWallet.sol");
-var DutchAction = artifacts.require("./DutchAuction/DutchAuction.sol");
+var DutchAuction = artifacts.require("./DutchAuction/DutchAuction.sol");
 var OmegaToken = artifacts.require("./Tokens/OmegaToken.sol");
+var CrowdsaleController = artifacts.require("./CrowdsaleController.sol");
 // var CrowdsaleController = artifacts.require("./CrowdsaleController.sol");
 
 contract('DutchAuction', 
@@ -17,7 +18,6 @@ contract('DutchAuction',
     const PREASSIGNED_TOKENS = 1000000 * 10**18
     const WAITING_PERIOD = 60*60*24*7
     const MAX_GAS = 150000  // Kraken gas limit
-    const crowdsaleControllerAddress = accounts[2];
     const multiSigWalletAddress = accounts[1];
     const owner = accounts[0];
 
@@ -30,14 +30,17 @@ contract('DutchAuction',
 
     let dutchAuction;
     let omegaToken;
+    let crowdsaleController;
     
     before(
       async () =>
       {
         // Create dutchAuction
-        dutchAuction = await DutchAction.new(crowdsaleControllerAddress, multiSigWalletAddress, 250000 * 10 ** 18, PRICE_FACTOR);
+        dutchAuction = await DutchAuction.new(multiSigWalletAddress, 250000 * 10 ** 18, PRICE_FACTOR);
         // Create Omega token
         omegaToken = await OmegaToken.new(dutchAuction.address, multiSigWalletAddress);
+        // Create Crowdsale controller
+        crowdsaleController = await CrowdsaleController.new(multiSigWalletAddress, dutchAuction.address);
       }
     );
 
@@ -45,7 +48,7 @@ contract('DutchAuction',
       'Sets up dutch auction',
       async () =>
       {
-        await dutchAuction.setup(omegaToken.address);
+        await dutchAuction.setup(omegaToken.address, crowdsaleController.address);
       }
     );
 
@@ -108,7 +111,7 @@ contract('DutchAuction',
       async () =>
       {
         try { 
-          await dutchAuction.setup(omegaToken.address);
+          await dutchAuction.setup(omegaToken.address, crowdsaleController.address);
         } catch(error) {
           return assertJump(error);
         }
@@ -214,7 +217,7 @@ contract('DutchAuction',
         // Verifies that bidder3 received a refund
         assert.equal(currentBalance3 - value3, initialBalance3 - refundBidder3);
         assert.equal(stopPrice, new BigNumber(totalReceived).dividedBy(MAX_TOKENS_SOLD).toNumber() + 1);
-        // Final price is equal to stop price
+        // Final price is equal to token price
         assert.equal(finalPrice, tokenPrice.toNumber());
         assert.equal(web3.eth.getBalance(dutchAuction.address), 0);
         assert.equal(currentStage, 3);
@@ -250,7 +253,6 @@ contract('DutchAuction',
         await dutchAuction.claimTokens(bidder1);
         let bidder1Balance = await omegaToken.balanceOf(bidder1);
         currentStage = await dutchAuction.stage();
-
         assert.equal(bidder1Balance, value1 * 10 ** 18 / finalPrice);
         assert.equal(currentStage, 4);
       }
