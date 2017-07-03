@@ -4,11 +4,9 @@ var OmegaToken = artifacts.require("./tokens/OmegaToken.sol");
 contract('OmegaToken', 
   function(accounts) 
     {
-    const TOTAL_TOKENS = 900000 * 10**18
-    const MAX_TOKENS_SOLD = 2000000
-    const PREASSIGNED_TOKENS = 1000000 * 10**18
+    const TOTAL_TOKENS = 100000000 * 10**18
+    const PREASSIGNED_TOKENS = 30000000 * 10**18
 
-    const crowdsaleControllerAddress = accounts[2];
     const multiSigWalletAddress = accounts[1];
     const dutchAuctionAddress = accounts[2];
 
@@ -33,10 +31,10 @@ contract('OmegaToken',
         let dutchAuctionBalance =  await omegaToken.balanceOf(dutchAuctionAddress);
         
         assert.equal(name, "Omega Token");
-        assert.equal(symbol, "OM");
-        assert.equal(totalSupply, (9000000 * 10**18));
-        assert.equal(omegaMultiSigBalance, 7000000 * 10**18);
-        assert.equal(dutchAuctionBalance, 2000000 * 10**18);
+        assert.equal(symbol, "OMT");
+        assert.equal(totalSupply, (100000000 * 10**18));
+        assert.equal(dutchAuctionBalance, 30000000 * 10**18);
+        assert.equal(omegaMultiSigBalance, 70000000 * 10**18);
       }
     );
 

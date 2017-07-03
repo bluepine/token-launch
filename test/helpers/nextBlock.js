@@ -1,5 +1,5 @@
 // timer for tests specific to testrpc
-module.exports = s => {
+module.exports = () => {
   return new Promise((resolve, reject) => {
     web3.currentProvider.sendAsync({
       jsonrpc: '2.0', 
@@ -9,5 +9,6 @@ module.exports = s => {
       if (err) return reject(err);
       resolve();
     });
+  // setTimeout(() => resolve(), s * 1000 + 600) // 600ms breathing room for testrpc to sync
   });
 };

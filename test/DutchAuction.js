@@ -203,22 +203,31 @@ contract('DutchAuction',
         let value1 = 100000 * 10 ** 18;  // 100k Ether
         let value2 = 100000 * 10 ** 18;  // 100k Ether
         let value3 = 100000 * 10 ** 18;  // 100k Ether
+        let currentTokenPrice = await dutchAuction.calcCurrentTokenPrice();
+        currentTokenPrice = await dutchAuction.calcCurrentTokenPrice();
+        tokenPrice = await dutchAuction.calcTokenPrice();
+
+        // Before the end of the auction calcCurrentTokenPrice is the same as calcToken price
+        assert(currentTokenPrice.toNumber() == tokenPrice.toNumber());
 
         await dutchAuction.bid(bidder3, {value: value3})
         let stopPrice = await dutchAuction.calcStopPrice();
         let finalPrice =  await dutchAuction.finalPrice();
         let totalReceived = await dutchAuction.totalReceived();
         tokenPrice = await dutchAuction.calcTokenPrice();
+        currentTokenPrice = await dutchAuction.calcCurrentTokenPrice();
         currentBalance3 = web3.eth.getBalance(bidder3);
         currentBlock = web3.eth.blockNumber;
         currentStage = await dutchAuction.stage();
 
-        refundBidder3 = value3*.6
+        refundBidder3 = value3*.6;
         // Verifies that bidder3 received a refund
         assert.equal(currentBalance3 - value3, initialBalance3 - refundBidder3);
         assert.equal(stopPrice, new BigNumber(totalReceived).dividedBy(MAX_TOKENS_SOLD).toNumber() + 1);
         // Final price is equal to token price
         assert.equal(finalPrice, tokenPrice.toNumber());
+        // After the auction calcCurrentTokenPrice is equal to finalPrice
+        assert(currentTokenPrice.toNumber() == finalPrice.toNumber());
         assert.equal(web3.eth.getBalance(dutchAuction.address), 0);
         assert.equal(currentStage, 3);
       }
@@ -232,7 +241,7 @@ contract('DutchAuction',
         let days = 6;
         await timer(days);
         try {
-          await dutchAuction.claimTokens(accounts[3]);
+          await crowdsaleController.claimTokens(bidder3);
         } catch(error) {
           return assertJump(error);
         }
@@ -250,13 +259,42 @@ contract('DutchAuction',
         let days = 2;
         await timer(days);
 
-        await dutchAuction.claimTokens(bidder1);
+        // all token claims go through the crowdsale controller
+        await crowdsaleController.claimTokens(bidder1);
+        // await dutchAuction.claimTokens(bidder1, {from: crowdsaleController.address});
         let bidder1Balance = await omegaToken.balanceOf(bidder1);
-        currentStage = await dutchAuction.stage();
         assert.equal(bidder1Balance, value1 * 10 ** 18 / finalPrice);
-        assert.equal(currentStage, 4);
       }
     );
 
+
+    // Ask Karl about this
+    // I'd like to be able to test auction ending because of block time
+    xit(
+      "Auction ends when token price is equal to stop price",
+      async () =>
+      {
+        // Create dutchAuction use price factor of 1 for simplicity
+        dutchAuction = await DutchAuction.new(multiSigWalletAddress, 25000 * 1 ** 18, 1);
+        // Create Omega token
+        omegaToken = await OmegaToken.new(dutchAuction.address, multiSigWalletAddress);
+        // Create Crowdsale controller
+        crowdsaleController = await CrowdsaleController.new(multiSigWalletAddress, dutchAuction.address);
+        // Setup auction
+        await dutchAuction.setup(omegaToken.address, crowdsaleController.address);
+        // Start auction
+        await dutchAuction.startAuction({from: multiSigWalletAddress});
+        console.log(web3.eth.blockNumber);
+        // Auction will end after roughly 760 blocks
+        for(let i = 0; i<760; i++) await nextBlock();
+        console.log(web3.eth.blockNumber);
+        // updateStages gives the correct stage
+        currentStage = await dutchAuction.updateStage();
+        let a = await dutchAuction.calcStopPrice();
+        let b = await dutchAuction.calcTokenPrice();
+        console.log([a, b, currentStage]);
+        assert.equal(currentStage, 3);
+      }
+    );
 
 });

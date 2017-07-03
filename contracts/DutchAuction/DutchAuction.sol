@@ -1,11 +1,12 @@
 pragma solidity 0.4.11;
 import "../Tokens/AbstractToken.sol";
 import "../CrowdsaleController.sol";
+import "../ownership/Ownable.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
-/// @author Karl - <your email here>
+/// @author Karl - <karl.floersch@consensys.net>
 /// Based on code by Stefan George: https://github.com/gnosis/gnosis-contracts/blob/dutch_auction/contracts/solidity/DutchAuction/DutchAuction.sol
-contract DutchAuction {
+contract DutchAuction is Ownable {
 
     /*
      *  Events
@@ -16,7 +17,7 @@ contract DutchAuction {
      *  Constants
      */
     uint256 constant public MAX_TOKENS_SOLD = 2000000 * 10**18; // 2M
-    uint256 constant public WAITING_PERIOD = 7 days;
+    // 
 
     /*
      *  Storage
@@ -24,7 +25,6 @@ contract DutchAuction {
     Token public omegaToken;
     CrowdsaleController public crowdsaleController;
     address public wallet;
-    address public owner;
     uint256 public ceiling;
     uint256 public priceFactor;
     uint256 public startBlock;
@@ -38,8 +38,7 @@ contract DutchAuction {
         AuctionDeployed,
         AuctionSetUp,
         AuctionStarted,
-        AuctionEnded,
-        TradingStarted
+        AuctionEnded
     }
 
     /*
@@ -52,9 +51,8 @@ contract DutchAuction {
         _;
     }
 
-    modifier isOwner() {
-        if (msg.sender != owner)
-            // Only owner is allowed to proceed
+    modifier isCrowdsaleController() {
+        if (msg.sender != address(crowdsaleController))
             revert();
         _;
     }
@@ -78,8 +76,6 @@ contract DutchAuction {
     modifier timedTransitions() {
         if (stage == Stages.AuctionStarted && calcTokenPrice() <= calcStopPrice())
             finalizeAuction();
-        if (stage == Stages.AuctionEnded && now > endTime + WAITING_PERIOD)
-            stage = Stages.TradingStarted;
         _;
     }
 
@@ -148,12 +144,14 @@ contract DutchAuction {
 
     /// @dev Calculates current token price
     /// @return Returns token price
+    // This doesnt do what it's supposed to
     function calcCurrentTokenPrice()
         public
+        constant
         timedTransitions
         returns (uint256)
     {
-        if (stage == Stages.AuctionEnded || stage == Stages.TradingStarted)
+        if (stage == Stages.AuctionEnded)
             return finalPrice;
         return calcTokenPrice();
     }
@@ -162,6 +160,7 @@ contract DutchAuction {
     /// @return Returns current auction stage
     function updateStage()
         public
+        constant
         timedTransitions
         returns (Stages)
     {
@@ -204,13 +203,12 @@ contract DutchAuction {
         BidSubmission(receiver, amount);
     }
 
-    /// @dev Claims tokens for bidder after auction
+    /// @dev Claims tokens for bidder after auction, permissions are in crowdsale controller
     /// @param receiver Tokens will be assigned to this address if set
     function claimTokens(address receiver)
         public
-        isValidPayload(receiver)
-        timedTransitions
-        atStage(Stages.TradingStarted)
+
+        isCrowdsaleController
     {
         uint256 tokenCount = bids[receiver] * 10**18 / finalPrice;
         bids[receiver] = 0;
@@ -246,13 +244,13 @@ contract DutchAuction {
         stage = Stages.AuctionEnded;
         if (totalReceived == ceiling) {
             finalPrice = calcTokenPrice();
+            crowdsaleController.finalizeAuction();
         } else {
             finalPrice = calcStopPrice();
             // Auction contract transfers all unsold tokens to Omega inventory multisig
             uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
             omegaToken.transfer(address(crowdsaleController),  tokensLeft);
-            crowdsaleController.startOpenWindow(tokensLeft, finalPrice);
+            crowdsaleController.startOpenWindow(totalReceived, tokensLeft, finalPrice);
         }
-        endTime = now;
     }
 }

@@ -1,4 +1,5 @@
 const assertJump = require('./helpers/assertJump');
+const BigNumber = require('bignumber.js');
 var OmegaToken = artifacts.require("./tokens/OmegaToken.sol");
 var CrowdsaleController = artifacts.require("./CrowdsaleController.sol");
 var DutchAuction = artifacts.require("./DutchAuction/DutchAuction.sol");
@@ -50,7 +51,7 @@ contract('CrowdsaleController',
       async () =>
       {
         try {
-          await await CrowdsaleController.new(0x0, dutchAuction.address);;
+          await crowdsaleController.new(0x0, dutchAuction.address);;
         } catch(error) {
           return assertJump(error);
         }
@@ -63,7 +64,7 @@ contract('CrowdsaleController',
       async () =>
       {
         try {
-          await CrowdsaleController.new(multiSigWalletAddress, 0x0);;
+          await crowdsaleController.new(multiSigWalletAddress, 0x0);;
         } catch(error) {
           return assertJump(error);
         }
@@ -86,4 +87,16 @@ contract('CrowdsaleController',
     //     await crowdsaleController.
     //   }
     // );
+
+    it(
+      "Can calculate the percent of totalTokens to send to the presale",
+      async () =>
+      {
+        let presalePercent = new BigNumber(await crowdsaleController.calculatePresaleTokens(200000000))
+        let expectedPresalePercent = new BigNumber(5000000*10**18).dividedBy(150000000).toNumber()
+        //This is an error that will fix itself once we test in python
+        console.log([presalePercent, expectedPresalePercent]);
+        assert.equal(presalePercent, expectedPresalePercent);
+      }
+    );
 });

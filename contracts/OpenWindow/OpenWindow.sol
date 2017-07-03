@@ -1,7 +1,9 @@
 pragma solidity 0.4.11;
 import '../Tokens/OmegaToken.sol';
-
-contract OpenWindow {
+import "../ownership/Ownable.sol";
+/// @title Open window contract
+/// @author Karl - <karl.floersch@consensys.net>
+contract OpenWindow is Ownable{
 
     /*
      * Events
@@ -13,7 +15,6 @@ contract OpenWindow {
      * Storage
      */
 
-    address public owner;
     address public wallet;
     Token public omegaToken;
     uint256 public price;
@@ -41,28 +42,12 @@ contract OpenWindow {
         _;
     }
 
-    modifier isOwner() {
-        if (msg.sender != owner)
-            revert();
-        _;
-    }
-
     // @dev Fallback function allows to buy tokens and transfer tokens later on
     function ()
         payable
     {
         buy(msg.sender);
     }
-
-    // modifier notFrozen {
-    //     require(block.number < freezeBlock);
-    //     _;
-    // }
-
-    // modifier notInEmergency {
-    //     assert(emergencyFlag == false);
-    //     _;
-    // }
 
     /*
      * Public functions
@@ -77,56 +62,39 @@ contract OpenWindow {
         uint256 _price,
         address _wallet,
         Token _omegaToken
-        // uint256 _startBlock,
-        // uint256 _freezeBlock
     ) {
         owner = msg.sender;
         wallet = _wallet;
         tokenSupply = _tokenSupply;
         omegaToken = _omegaToken;
         price = _price;
-        // startBlock = _startBlock;
-        // freezeBlock = _freezeBlock;
         stage = Stages.SaleStarted;
-
-        // if (omegaToken.balanceOf(this) != _tokenSupply)
-        //     revert();
     }
 
-    /// @dev purchaseToken(): function that exchanges ETH for ADT (main sale function)
+    /// @dev buy(): function that exchanges ETH for ADT (main sale function)
     /// @notice You're about to purchase the equivalent of `msg.value` Wei in ADT tokens
     function buy(address receiver)
         payable
-        // setupComplete
-        // notInEmergency
         public
         isOwner
         atStage(Stages.SaleStarted)
-    {
-        /* Calculate whether any of the msg.value needs to be returned to
-           the sender. The tokenPurchase is the actual number of tokens which
-           will be purchased once any excessAmount included in the msg.value
-           is removed from the purchaseAmount. */
-        if (receiver == 0x0)
-            receiver = msg.sender;
-        uint amount = msg.value;
-        uint tokenPurchase = amount / price;
+    {   
+        // Check that msg.value is not 0
+        uint256 amount = msg.value;
+        if (amount < 0)
+            revert();
         uint256 maxWei = tokenSupply * price;
 
+        //May need this
         // uint maxWei = (MAX_TOKENS_SOLD / 10**18) * calcTokenPrice() - totalReceived;
 
-        // Cannot purchase more tokens than this contract has available to sell
-        
-
-        // Return any excess msg.value
-        // if (excessmount > 0) {
-        //     msg.sender.transfer(excessAmount);
-        // }
+        //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
             amount = maxWei;
             // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
             receiver.transfer(msg.value - amount);
         }
+        uint256 tokenPurchase = amount * 10**18/ price;
         // Forward received ether to the wallet
         wallet.transfer(amount);
 
@@ -144,24 +112,14 @@ contract OpenWindow {
         atStage(Stages.SaleStarted)
     {
         stage = Stages.SaleEnded;
-        // endTime = now;
     }
 
     function claimTokens(address receiver)
         public
         isOwner
-        atStage(Stages.TradingStarted)
     {
-        uint tokenCount = tokensBought[receiver] * 10**18;
+        uint tokenCount = tokensBought[receiver];
         tokensBought[receiver] = 0;
         omegaToken.transfer(receiver, tokenCount);
     }
-
-
-    // function emergencyToggle()
-    //     onlyOwner
-    // {
-    //     emergencyFlag = !emergencyFlag;
-    // }
-
 }
