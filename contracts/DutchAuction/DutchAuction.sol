@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
 import "../Tokens/AbstractToken.sol";
-import "../CrowdsaleController.sol";
+import "../CrowdsaleController/AbstractCrowdsaleController.sol";
 import "../ownership/Ownable.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
@@ -16,7 +16,8 @@ contract DutchAuction is Ownable {
     /*
      *  Constants
      */
-    uint256 constant public MAX_TOKENS_SOLD = 2000000 * 10**18; // 2M
+    uint256 constant public MAX_TOKENS_SOLD = 23700000 * 10**18; // 30M
+    uint256 constant public AUCTION_LENGTH = 5 days;
     // 
 
     /*
@@ -231,8 +232,10 @@ contract DutchAuction is Ownable {
         constant
         public
         returns (uint)
-    {
-        return priceFactor * 10**18 / (block.number - startBlock + 7500) + 1;
+    {   
+        // Calculated at 6,000 blocks mined per day
+        // Auction calculated to stop after 5.76 days
+        return priceFactor * 10 ** 18/ ((block.number - startBlock) * 3  + 7500) + 1;
     }
 
     /*

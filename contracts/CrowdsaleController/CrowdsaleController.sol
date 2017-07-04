@@ -1,9 +1,9 @@
 pragma solidity 0.4.11;
-import './Wallets/MultiSigWallet.sol';
-import './Presale/Presale.sol';
-import './DutchAuction/DutchAuction.sol';
-import './Tokens/OmegaToken.sol';
-import './OpenWindow/OpenWindow.sol';
+import '../Wallets/MultiSigWallet.sol';
+import '../Presale/Presale.sol';
+import '../DutchAuction/AbstractDutchAuction.sol';
+import '../Tokens/OmegaToken.sol';
+import '../OpenWindow/OpenWindow.sol';
 
 /// @title Omega token contract
 /// @author Karl - <karl.floersch@consensys.net>
@@ -150,9 +150,9 @@ contract CrowdsaleController {
         public
         isDutchAuction
     {   
-        uint256 presalePercent = calPresalePercent(dutchAuctionRaise);
+        uint256 presalePercent = calcPresalePercent(dutchAuctionRaise);
         uint256 totalSupply = omegaToken.totalSupply();
-        uint256 presaleTokenSupply = calcPresaleTokenSupply(presalePercent, totalSupply)
+        // uint256 presaleTokenSupply = calcPresaleTokenSupply(presalePercent, totalSupply)
 
         // Add premuim to price
         price = (price * 13)/10;
@@ -174,13 +174,13 @@ contract CrowdsaleController {
         endTime = now;
     }
 
-    function calcPresaleTokenSupply(uint256 presalePercent, uint256 totalSupply)
-    public
-    constant
-    returns (uint256)
-    {
-        pre
-    }
+    // function calcPresaleTokenSupply(uint256 presalePercent, uint256 totalSupply)
+    // public
+    // constant
+    // returns (uint256)
+    // {
+    //     pre
+    // }
 
     function calcPresalePercent(uint256 dutchAuctionRaise)
         public

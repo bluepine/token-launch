@@ -15,16 +15,22 @@ contract OmegaToken is StandardToken {
     function OmegaToken(address dutchAuction, address omegaMultisig) 
         public
     {
-        if (dutchAuction  == 0x0 || omegaMultisig == 0x0)
+        if (dutchAuction  == 0x0 || 
+            omegaMultisig == 0x0 ||
+            msg.sender    == 0x0)
             // Addresses should not be null
             revert();
+        address crowdsaleController = msg.sender;
         totalSupply     = 100000000 * 10**18; // 100 million tokens
-        balances[dutchAuction]      = 30000000 * 10**18; // 30 million tokens
-        uint256 assignedTokens      = balances[dutchAuction];
+        balances[dutchAuction]          = 23700000 * 10**18; // 23.7 million tokens
+        uint256 assignedTokens          = balances[dutchAuction];
         Transfer(0, dutchAuction, balances[dutchAuction]);
-        balances[omegaMultisig]     = 70000000 * 10**18; // 70 million tokens
+        balances[crowdsaleController]   = 6300000 * 10**18; // 6.3 million
+        assignedTokens                 += balances[crowdsaleController];
+        Transfer(0, dutchAuction, balances[crowdsaleController]);
+        balances[omegaMultisig]         = 70000000 * 10**18; // 70 million tokens
         Transfer(0, omegaMultisig, balances[omegaMultisig]);
-        assignedTokens             += balances[omegaMultisig];
+        assignedTokens                 += balances[omegaMultisig];
 
         if (assignedTokens != totalSupply)
             revert();
