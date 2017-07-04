@@ -1,9 +1,9 @@
 pragma solidity 0.4.11;
 import '../Tokens/OmegaToken.sol';
-import "../ownership/Ownable.sol";
+import '../CrowdsaleController/AbstractCrowdsaleController.sol';
 /// @title Open window contract
 /// @author Karl - <karl.floersch@consensys.net>
-contract OpenWindow is Ownable{
+contract OpenWindow {
 
     /*
      * Events
@@ -14,6 +14,7 @@ contract OpenWindow is Ownable{
      * Storage
      */
     address public wallet;
+    address public crowdsaleController;
     Token public omegaToken;
     uint256 public price;
     uint256 public startBlock;
@@ -25,8 +26,7 @@ contract OpenWindow is Ownable{
 
     enum Stages {
         SaleStarted,
-        SaleEnded,
-        TradingStarted
+        SaleEnded
     }
 
     /*
@@ -35,6 +35,12 @@ contract OpenWindow is Ownable{
     modifier atStage(Stages _stage) {
         if (stage != _stage)
             // Contract not in expected state
+            revert();
+        _;
+    }
+
+    modifier isCrowdsaleController() {
+        if (msg.sender != crowdsaleController)
             revert();
         _;
     }
@@ -59,8 +65,9 @@ contract OpenWindow is Ownable{
         uint256 _price,
         address _wallet,
         Token _omegaToken
-    ) {
-        owner = msg.sender;
+    ) 
+    {
+        crowdsaleController = msg.sender;
         wallet = _wallet;
         tokenSupply = _tokenSupply;
         omegaToken = _omegaToken;
@@ -73,14 +80,14 @@ contract OpenWindow is Ownable{
     function buy(address receiver)
         payable
         public
-        isOwner
+        isCrowdsaleController
         atStage(Stages.SaleStarted)
     {   
         // Check that msg.value is not 0
         uint256 amount = msg.value;
         if (amount < 0)
             revert();
-        uint256 maxWei = tokenSupply * price;
+        uint256 maxWei =(tokenSupply/10**18) * price;
 
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
@@ -88,7 +95,7 @@ contract OpenWindow is Ownable{
             // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
             receiver.transfer(msg.value - amount);
         }
-        uint256 tokenPurchase = amount * 10**18/ price;
+        uint256 tokenPurchase = amount * 10 ** 18/ price;
         // Forward received ether to the wallet
         wallet.transfer(amount);
 
@@ -110,7 +117,7 @@ contract OpenWindow is Ownable{
 
     function claimTokens(address receiver)
         public
-        isOwner
+        isCrowdsaleController
     {
         uint tokenCount = tokensBought[receiver];
         tokensBought[receiver] = 0;

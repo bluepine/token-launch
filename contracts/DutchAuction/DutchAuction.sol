@@ -206,7 +206,6 @@ contract DutchAuction is Ownable {
     /// @param receiver Tokens will be assigned to this address if set
     function claimTokens(address receiver)
         public
-
         isCrowdsaleController
     {
         uint256 tokenCount = bids[receiver] * 10**18 / finalPrice;
