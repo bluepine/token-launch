@@ -87,8 +87,6 @@ contract DutchAuction is Ownable {
     /// @param _wallet Omega wallet
     /// @param _ceiling Auction ceiling
     /// @param _priceFactor Auction price factor
-
-    /* add in controller address */
     function DutchAuction(address _wallet, uint256 _ceiling, uint256 _priceFactor)
         public
     {
@@ -109,7 +107,7 @@ contract DutchAuction is Ownable {
         public
         isOwner
         atStage(Stages.AuctionDeployed)
-{
+    {
         if (address(_omegaToken) == 0x0 || address(_crowdsaleController) == 0x0)
             // Argument is null
             revert();
@@ -145,7 +143,6 @@ contract DutchAuction is Ownable {
 
     /// @dev Calculates current token price
     /// @return Returns token price
-    // This doesnt do what it's supposed to
     function calcCurrentTokenPrice()
         public
         constant

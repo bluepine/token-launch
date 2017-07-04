@@ -39,7 +39,6 @@ contract CrowdsaleController {
     /*
      *  Modifiers
      */
-
     modifier isOwner() {
         if (msg.sender != owner)
             // Only owner is allowed to proceed
@@ -131,18 +130,17 @@ contract CrowdsaleController {
 
     function claimTokens(address receiver)
         public
-        isValidPayload(receiver)
-        timedTransitions
-        atStage(Stages.TradingStarted)
+        // isValidPayload(receiver)
+        // timedTransitions
+        // atStage(Stages.TradingStarted)
     {   
         if (receiver == 0x0)
             receiver = msg.sender;
-        presale.claimTokens(receiver);
+        // presale.claimTokens(receiver);
         dutchAuction.claimTokens(receiver);
-        if (address(openWindow) != 0x0) 
-            openWindow.claimTokens(receiver);
+        // if (address(openWindow) != 0x0) 
+            // openWindow.claimTokens(receiver);
     }
-
 
     /// @param tokensLeft Amount of tokens left after reverse dutch action
     /// @param price The price the reverse dutch auction ended at
@@ -165,7 +163,6 @@ contract CrowdsaleController {
 
     function finalizeAuction() 
         public
-        // Make sure that this can only be called once
     {
         // Only dutch auction or open window sale can end auction
         if (address(dutchAuction) != msg.sender || (stage == Stages.OpenWindow && address(openWindow) !=msg.sender))

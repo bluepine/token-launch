@@ -8,13 +8,11 @@ contract OpenWindow is Ownable{
     /*
      * Events
      */
-
     event PurchasedTokens(address indexed purchaser, uint amount);
 
     /*
      * Storage
      */
-
     address public wallet;
     Token public omegaToken;
     uint256 public price;
@@ -34,7 +32,6 @@ contract OpenWindow is Ownable{
     /*
      * Modifiers
      */
-
     modifier atStage(Stages _stage) {
         if (stage != _stage)
             // Contract not in expected state
@@ -52,7 +49,6 @@ contract OpenWindow is Ownable{
     /*
      * Public functions
      */
-
     /// @dev Sale(): constructor for Sale contract
     /// @param _wallet the sale's beneficiary address 
     /// @param _tokenSupply the total number of AdToken to mint
@@ -84,9 +80,6 @@ contract OpenWindow is Ownable{
         if (amount < 0)
             revert();
         uint256 maxWei = tokenSupply * price;
-
-        //May need this
-        // uint maxWei = (MAX_TOKENS_SOLD / 10**18) * calcTokenPrice() - totalReceived;
 
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
