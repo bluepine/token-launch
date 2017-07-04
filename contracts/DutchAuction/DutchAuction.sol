@@ -102,7 +102,8 @@ contract DutchAuction is Ownable {
     }
 
     /// @dev Setup function sets external contracts' addresses
-    /// @param _omegaToken Omega token address
+    /// @param _omegaToken Omega token initialized in crowdsale controller
+    /// @params _crowdsaleController Crowdsaler controller
     function setup(Token _omegaToken, CrowdsaleController _crowdsaleController)
         public
         isOwner
@@ -238,6 +239,7 @@ contract DutchAuction is Ownable {
     /*
      *  Private functions
      */
+    /// @dev Finishes dutch auction and finalizes the token sale or starts the open window sale depending on how it ends
     function finalizeAuction()
         private
     {

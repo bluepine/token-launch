@@ -2,7 +2,7 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest contracts.tests.dutch_auction.test_dutch_auction
+    run test with python -m unittest contracts.test.python.tokens.test_omega_token
     """
 
     def __init__(self, *args, **kwargs):

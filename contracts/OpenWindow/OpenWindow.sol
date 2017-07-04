@@ -53,6 +53,7 @@ contract OpenWindow is Ownable{
     /// @param _wallet the sale's beneficiary address 
     /// @param _tokenSupply the total number of AdToken to mint
     /// @param _price price of the token in Wei (ADT/Wei pair price)
+    /// @param _omegaToken Omega token
     function OpenWindow(
         uint256 _tokenSupply,
         uint256 _price,
