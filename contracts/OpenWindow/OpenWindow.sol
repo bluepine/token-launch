@@ -1,10 +1,9 @@
 pragma solidity 0.4.11;
 import '../Tokens/OmegaToken.sol';
-import '../CrowdsaleController/AbstractCrowdsaleController.sol';
-/// @title Open window contract
-/// @author Karl - <karl.floersch@consensys.net>
-contract OpenWindow {
 
+/// @title Open window contract
+/// @author Karl Floersh - <karl.floersch@consensys.net>
+contract OpenWindow {
     /*
      * Events
      */
@@ -45,7 +44,7 @@ contract OpenWindow {
         _;
     }
 
-    // @dev Fallback function allows to buy tokens and transfer tokens later on
+    /// @dev Fallback function that calls the buy tokens function
     function ()
         payable
     {
@@ -55,17 +54,13 @@ contract OpenWindow {
     /*
      * Public functions
      */
-    /// @dev Sale(): constructor for Sale contract
-    /// @param _wallet the sale's beneficiary address 
-    /// @param _tokenSupply the total number of AdToken to mint
-    /// @param _price price of the token in Wei (ADT/Wei pair price)
+    /// @dev Contract constructor function sets crowdsale controller and the stage
+    /// @param _wallet The sale's beneficiary address 
+    /// @param _tokenSupply The number of OMG available to sell
+    /// @param _price Price of the token in Wei (OMG/Wei pair price)
     /// @param _omegaToken Omega token
-    function OpenWindow(
-        uint256 _tokenSupply,
-        uint256 _price,
-        address _wallet,
-        Token _omegaToken
-    ) 
+    function OpenWindow(uint256 _tokenSupply, uint256 _price, address _wallet, Token _omegaToken)
+        public
     {
         crowdsaleController = msg.sender;
         wallet = _wallet;
@@ -75,8 +70,8 @@ contract OpenWindow {
         stage = Stages.SaleStarted;
     }
 
-    /// @dev buy(): function that exchanges ETH for ADT (main sale function)
-    /// @notice You're about to purchase the equivalent of `msg.value` Wei in ADT tokens
+    /// @dev Exchanges ETH for OMG (sale function)
+    /// @notice You're about to purchase the equivalent of `msg.value` Wei in OMG tokens
     function buy(address receiver)
         payable
         public
@@ -88,7 +83,6 @@ contract OpenWindow {
         if (amount < 0)
             revert();
         uint256 maxWei =(tokenSupply/10**18) * price;
-
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
             amount = maxWei;
@@ -98,23 +92,16 @@ contract OpenWindow {
         uint256 tokenPurchase = amount * 10 ** 18/ price;
         // Forward received ether to the wallet
         wallet.transfer(amount);
-
         // Transfer the sum of tokens tokenPurchase to the msg.sender
         tokenSupply = tokenSupply - tokenPurchase;
         tokensBought[receiver] += tokenPurchase;
-
         if (maxWei == amount)
             finalizeAuction();
         PurchasedTokens(msg.sender, tokenPurchase);
     }
 
-    function finalizeAuction()
-        private
-        atStage(Stages.SaleStarted)
-    {
-        stage = Stages.SaleEnded;
-    }
-
+    /// @dev Claims tokens for buyer after sale, permissions are in crowdsale controller
+    /// @param receiver Tokens will be assigned to this address if set
     function claimTokens(address receiver)
         public
         isCrowdsaleController
@@ -122,5 +109,16 @@ contract OpenWindow {
         uint tokenCount = tokensBought[receiver];
         tokensBought[receiver] = 0;
         omegaToken.transfer(receiver, tokenCount);
+    }
+
+    /*
+     *  Private functions
+     */
+    /// @dev Finishes the open window and then the overall token sale
+    function finalizeAuction()
+        private
+        atStage(Stages.SaleStarted)
+    {
+        stage = Stages.SaleEnded; 
     }
 }

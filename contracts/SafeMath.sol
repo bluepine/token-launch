@@ -1,6 +1,5 @@
 pragma solidity ^0.4.11;
 
-//MAY USED
 /**
  * Credits to Open Zeppelin
  * Math operations with safety checks

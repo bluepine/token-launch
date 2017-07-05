@@ -5,14 +5,14 @@ import '../DutchAuction/AbstractDutchAuction.sol';
 import '../Tokens/OmegaToken.sol';
 import '../OpenWindow/OpenWindow.sol';
 
-/// @title Omega token contract
-/// @author Karl - <karl.floersch@consensys.net>
+/// @title Crowdsale controller token contract
+/// @author Karl Floersh - <karl.floersch@consensys.net>
 contract CrowdsaleController {
+
     /*
      *  Constants
      */
     uint256 constant public WAITING_PERIOD = 7 days;
-
 
     /*
      *  Storage
@@ -34,7 +34,6 @@ contract CrowdsaleController {
         SaleEnded,
         TradingStarted
     }
-
 
     /*
      *  Modifiers
@@ -76,15 +75,11 @@ contract CrowdsaleController {
         _;
     }
 
-
-    // @dev Fallback function allows to buy tokens and transfer tokens later on
+    /// @dev Fallback function, captures the refund when reverse dutch auction and open window sales end
     function () 
         payable
     {
-        if (msg.sender == address(dutchAuction))
-            //  Refund from dutch auction or open to signal that the sale is over
-            fillOrMarket(msg.sender);
-        else if (stage == Stages.MainSale || stage == Stages.OpenWindow)
+        if (stage == Stages.MainSale || stage == Stages.OpenWindow)
             fillOrMarket(msg.sender);
         else if (stage == Stages.TradingStarted)
             claimTokens(msg.sender);
@@ -92,11 +87,11 @@ contract CrowdsaleController {
             revert();
     }
 
-
     /// @param _dutchAuction Reverse dutch auction contract
     /// @param _multiSigWallet Omega multisig wallet
-    function CrowdsaleController(address _multiSigWallet, DutchAuction _dutchAuction) {
-        //initialize gateway to both contracts
+    function CrowdsaleController(address _multiSigWallet, DutchAuction _dutchAuction) 
+    {
+        // Initialize gateway to both contracts
         if (_multiSigWallet == 0x0 || address(_dutchAuction) == 0x0)
             // Argument is null
             revert();
@@ -108,10 +103,23 @@ contract CrowdsaleController {
         stage = Stages.Deployed;
     }
 
-    function startPresale() {
+    /// @dev Starts the presale
+    function startPresale() 
+    {
         stage = Stages.Presale;
     }
 
+    /// @dev Wrapper that allows the Omega team to give presale participants a percent of the presale from the crowdsale controller
+    /// @param _buyer The address a percentage of the presale is allocated to
+    /// @param _presalePercent The percent of presale allocated in exchange for usd
+    function usdContribution(address _buyer, uint256 _presalePercent) 
+        atStage(Stages.Presale)
+    {
+        presale.usdContribution(_buyer, _presalePercent);
+    }
+
+    /// @dev Determines whether value sent to crowdsale controller should got to the dutch auction or to the open window contracts
+    /// @param receiver Bid on or bought tokens will be assigned to this address if set
     function fillOrMarket(address receiver) 
         public
         payable
@@ -128,39 +136,47 @@ contract CrowdsaleController {
             revert();
     }
 
+    /// @dev Claims tokens for bidder after auction
+    /// @param receiver Tokens will be assigned to this address if set
     function claimTokens(address receiver)
         public
-        // isValidPayload(receiver)
-        // timedTransitions
-        // atStage(Stages.TradingStarted)
+        isValidPayload(receiver)
+        timedTransitions
+        atStage(Stages.TradingStarted)
     {   
         if (receiver == 0x0)
             receiver = msg.sender;
-        // presale.claimTokens(receiver);
-        dutchAuction.claimTokens(receiver);
-        // if (address(openWindow) != 0x0) 
-            // openWindow.claimTokens(receiver);
+        // Checks if the receiever has any tokens in each contract and if they do claims their tokens
+        if (dutchAuction.bids(receiver) > 0)
+            dutchAuction.claimTokens(receiver);
+        if (presale.presaleAllocations(receiver) > 0)
+            presale.claimTokens(receiver);
+        if (address(openWindow) != 0x0 && openWindow.tokensBought(receiver) > 0) 
+            openWindow.claimTokens(receiver);
     }
 
+    /// @dev Starts the open window auction and gives it the correct amount of tokens
     /// @param tokensLeft Amount of tokens left after reverse dutch action
     /// @param price The price the reverse dutch auction ended at
-    function startOpenWindow(uint256 dutchAuctionRaise, uint256 tokensLeft, uint256 price) 
+    function startOpenWindow(uint256 tokensLeft, uint256 price) 
         public
         isDutchAuction
     {   
-        uint256 presalePercent = calcPresalePercent(dutchAuctionRaise);
-        uint256 totalSupply = omegaToken.totalSupply();
-        // uint256 presaleTokenSupply = calcPresaleTokenSupply(presalePercent, totalSupply)
-
+        uint256 presalePercent = calcPresalePercent();
+        uint256 presaleTokenSupply = calcPresaleTokenSupply(presalePercent);
+        // Setups up the presale with the necesary amount of tokens based on the result of the dutch auction  
+        presale.setupClaim(presaleTokenSupply, omegaToken);
+        omegaToken.transfer(address(presale), presaleTokenSupply);
         // Add premuim to price
         price = (price * 13)/10;
         // transfer required amount of tokens to open window
-        omegaToken.transfer(address(openWindow),  tokensLeft);
+        omegaToken.transfer(address(openWindow),  tokensLeft - presaleTokenSupply);
         // Create fixed price fixed cap toke sale
         openWindow = new OpenWindow(tokensLeft, price, omegaMultiSig, omegaToken);
         stage = Stages.OpenWindow;
     }
 
+    /// @dev Finishes the token sale
     function finalizeAuction() 
         public
     {
@@ -171,22 +187,31 @@ contract CrowdsaleController {
         endTime = now;
     }
 
-    // function calcPresaleTokenSupply(uint256 presalePercent, uint256 totalSupply)
-    // public
-    // constant
-    // returns (uint256)
-    // {
-    //     pre
-    // }
+    /*
+     *  Private functions
+     */
+    /// @dev Calculates the token supply for the presale contract
+    /// @param presalePercent The percentage of the total tokens that the presale will receive
+    function calcPresaleTokenSupply(uint256 presalePercent)
+        private
+        constant
+        returns (uint256)
+    {
+        return omegaToken.totalSupply() * (presalePercent/10**18);
+    }
 
-    function calcPresalePercent(uint256 dutchAuctionRaise)
-        public
+    /// @dev Calculates the percentage of the total tokens that the presale will receive
+    function calcPresalePercent()
+        private
         constant
         returns (uint256)
     {   
-        return (5000000*10**18)/ min256(250000000*10**18, dutchAuctionRaise * 75/100);
+        return (5000000*10**18)/ min256(625000*10**18, dutchAuction.totalReceived() * 75/100);
     }
 
+    /// @dev Calculates the minimum between two numbers
+    /// @param a The first number
+    /// @param b The second number
     function min256(uint256 a, uint256 b) 
         private 
         constant 

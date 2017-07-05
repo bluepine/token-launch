@@ -1,13 +1,11 @@
 pragma solidity 0.4.11;
 import "../Tokens/AbstractToken.sol";
 import "../CrowdsaleController/AbstractCrowdsaleController.sol";
-import "../ownership/Ownable.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
-/// @author Karl - <karl.floersch@consensys.net>
+/// @author Karl Floersh - <karl.floersch@consensys.net>
 /// Based on code by Stefan George: https://github.com/gnosis/gnosis-contracts/blob/dutch_auction/contracts/solidity/DutchAuction/DutchAuction.sol
-contract DutchAuction is Ownable {
-
+contract DutchAuction {
     /*
      *  Events
      */
@@ -18,7 +16,6 @@ contract DutchAuction is Ownable {
      */
     uint256 constant public MAX_TOKENS_SOLD = 23700000 * 10**18; // 30M
     uint256 constant public AUCTION_LENGTH = 5 days;
-    // 
 
     /*
      *  Storage
@@ -26,6 +23,7 @@ contract DutchAuction is Ownable {
     Token public omegaToken;
     CrowdsaleController public crowdsaleController;
     address public wallet;
+    address public owner;
     uint256 public ceiling;
     uint256 public priceFactor;
     uint256 public startBlock;
@@ -48,6 +46,12 @@ contract DutchAuction is Ownable {
     modifier atStage(Stages _stage) {
         if (stage != _stage)
             // Contract not in expected state
+            revert();
+        _;
+    }
+
+    modifier isOwner() {
+        if (msg.sender != owner)
             revert();
         _;
     }
@@ -103,7 +107,7 @@ contract DutchAuction is Ownable {
 
     /// @dev Setup function sets external contracts' addresses
     /// @param _omegaToken Omega token initialized in crowdsale controller
-    /// @params _crowdsaleController Crowdsaler controller
+    /// @param _crowdsaleController Crowdsaler controller
     function setup(Token _omegaToken, CrowdsaleController _crowdsaleController)
         public
         isOwner
@@ -248,10 +252,10 @@ contract DutchAuction is Ownable {
             crowdsaleController.finalizeAuction();
         } else {
             finalPrice = calcStopPrice();
-            // Auction contract transfers all unsold tokens to Omega inventory multisig
+            // Auction contract transfers all unsold tokens to the crowdsale controller
             uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
             omegaToken.transfer(address(crowdsaleController),  tokensLeft);
-            crowdsaleController.startOpenWindow(totalReceived, tokensLeft, finalPrice);
+            crowdsaleController.startOpenWindow(tokensLeft, finalPrice);
         }
     }
 }

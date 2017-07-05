@@ -2,7 +2,7 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest contracts.tests.dutch_auction.test_dutch_auction
+    run test with python -m unittest contracts.test.python.dutch_auction.test_dutch_auction
     """
 
     BLOCKS_PER_DAY = 6000
@@ -112,7 +112,8 @@ class TestContract(AbstractTestContracts):
         self.assertRaises(TransactionFailed,
                           self.dutch_auction.claimTokens,
                           sender=keys[bidder_1])
-        # Bidder 1 claim his tokens after the waiting period is over
+        # Bidder 1 claim his tokens throught the crowdsale controller after the waiting period is over
+        self.s.block.timestamp += self.WAITING_PERIOD + 1
         self.crowdsale_controller.claimTokens(sender=keys[bidder_1])
         self.assertEqual(round(int(self.omega_token.balanceOf(accounts[bidder_1])),-7),
                          round(int(value_1 * 10 ** 18 / self.dutch_auction.finalPrice()), -7))
@@ -120,15 +121,6 @@ class TestContract(AbstractTestContracts):
         self.crowdsale_controller.claimTokens(accounts[bidder_2], sender=keys[spender])
         # Bidder 3 claims his tokens
         self.crowdsale_controller.claimTokens(sender=keys[bidder_3])
-        # Confirm token balances
-        # self.assertEqual(self.omega_token.balanceOf(accounts[bidder_2]),
-        #                  value_2 * 10 ** 18 / self.dutch_auction.finalPrice())
-        # self.assertEqual(self.omega_token.balanceOf(accounts[bidder_3]),
-        #                  (value_3 - refund_bidder_3) * 10 ** 18 / self.dutch_auction.finalPrice())
-        # self.assertEqual(self.omega_token.balanceOf(self.multisig_wallet.address),
-        #                  self.PREASSIGNED_TOKENS + (
-        #                      self.MAX_TOKENS_SOLD * 10 ** 18 - self.dutch_auction.totalReceived() * 10 ** 18
-        #                      / self.dutch_auction.finalPrice()))
         self.assertEqual(self.omega_token.totalSupply(), self.TOTAL_TOKENS)
         self.assertEqual(self.dutch_auction.totalReceived(), self.FUNDING_GOAL)
         # Token launch occurs in crowdsale controller

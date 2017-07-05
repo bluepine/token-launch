@@ -2,9 +2,8 @@ pragma solidity 0.4.11;
 import './StandardToken.sol';
 
 /// @title Omega token contract
-/// @author Karl - <karl.floersch@consensys.net>
+/// @author Karl Floersh- <karl.floersch@consensys.net>
 contract OmegaToken is StandardToken {
-
     /*
      *  Constants
      */
@@ -12,6 +11,9 @@ contract OmegaToken is StandardToken {
     string public constant symbol = "OMT";
     uint8 public constant decimals = 18;
 
+    /*
+     * Public functions
+     */
     function OmegaToken(address dutchAuction, address omegaMultisig) 
         public
     {
@@ -21,7 +23,7 @@ contract OmegaToken is StandardToken {
             // Addresses should not be null
             revert();
         address crowdsaleController = msg.sender;
-        totalSupply     = 100000000 * 10**18; // 100 million tokens
+        totalSupply                     = 100000000 * 10**18; // 100 million tokens
         balances[dutchAuction]          = 23700000 * 10**18; // 23.7 million tokens
         uint256 assignedTokens          = balances[dutchAuction];
         Transfer(0, dutchAuction, balances[dutchAuction]);

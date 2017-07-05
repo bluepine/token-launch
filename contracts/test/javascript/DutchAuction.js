@@ -45,14 +45,6 @@ contract('DutchAuction',
     );
 
     it(
-      'Sets up dutch auction',
-      async () =>
-      {
-        await dutchAuction.setup(omegaToken.address, crowdsaleController.address);
-      }
-    );
-
-    it(
       'Checks initial parameters',
       async () =>
       {
@@ -267,10 +259,7 @@ contract('DutchAuction',
       }
     );
 
-
-    // Ask Karl about this
-    // I'd like to be able to test auction ending because of block time
-    xit(
+    it(
       "Auction ends when token price is equal to stop price",
       async () =>
       {
