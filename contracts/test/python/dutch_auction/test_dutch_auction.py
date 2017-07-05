@@ -46,6 +46,8 @@ class TestContract(AbstractTestContracts):
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, change_ceiling_data, sender=keys[wa_1])
         self.assertEqual(self.dutch_auction.ceiling(), self.FUNDING_GOAL)
         self.assertEqual(self.dutch_auction.priceFactor(), self.PRICE_FACTOR)
+        # start the presale from crowdsale controller
+        self.crowdsale_controller.startPresale()
         # Start auction
         start_auction_data = self.dutch_auction.translator.encode('startAuction', [])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, start_auction_data, sender=keys[wa_1])
@@ -120,6 +122,7 @@ class TestContract(AbstractTestContracts):
         # Spender is triggering the claiming process for bidder 2
         self.crowdsale_controller.claimTokens(accounts[bidder_2], sender=keys[spender])
         # Bidder 3 claims his tokens
+        # Add tests back in
         self.crowdsale_controller.claimTokens(sender=keys[bidder_3])
         self.assertEqual(self.omega_token.totalSupply(), self.TOTAL_TOKENS)
         self.assertEqual(self.dutch_auction.totalReceived(), self.FUNDING_GOAL)

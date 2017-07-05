@@ -8,7 +8,6 @@ import '../OpenWindow/OpenWindow.sol';
 /// @title Crowdsale controller token contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>
 contract CrowdsaleController {
-
     /*
      *  Constants
      */
@@ -25,11 +24,13 @@ contract CrowdsaleController {
     address public owner;
     Stages public stage;
     uint256 public endTime;
+    uint256 public presaleTokenSupply;
 
     enum Stages {
         Deployed,
         Presale,
         MainSale,
+        SetupPresaleClaim,
         OpenWindow,
         SaleEnded,
         TradingStarted
@@ -104,7 +105,8 @@ contract CrowdsaleController {
     }
 
     /// @dev Starts the presale
-    function startPresale() 
+    function startPresale()
+        public
     {
         stage = Stages.Presale;
     }
@@ -113,10 +115,14 @@ contract CrowdsaleController {
     /// @param _buyer The address a percentage of the presale is allocated to
     /// @param _presalePercent The percent of presale allocated in exchange for usd
     function usdContribution(address _buyer, uint256 _presalePercent) 
+        public
         atStage(Stages.Presale)
     {
         presale.usdContribution(_buyer, _presalePercent);
     }
+
+    // Needs to start after the dutch auction is over
+
 
     /// @dev Determines whether value sent to crowdsale controller should got to the dutch auction or to the open window contracts
     /// @param receiver Bid on or bought tokens will be assigned to this address if set
@@ -149,11 +155,12 @@ contract CrowdsaleController {
         // Checks if the receiever has any tokens in each contract and if they do claims their tokens
         if (dutchAuction.bids(receiver) > 0)
             dutchAuction.claimTokens(receiver);
-        if (presale.presaleAllocations(receiver) > 0)
-            presale.claimTokens(receiver);
+        // if (presale.presaleAllocations(receiver) > 0)
+            // presale.claimTokens(receiver);
         if (address(openWindow) != 0x0 && openWindow.tokensBought(receiver) > 0) 
             openWindow.claimTokens(receiver);
     }
+
 
     /// @dev Starts the open window auction and gives it the correct amount of tokens
     /// @param tokensLeft Amount of tokens left after reverse dutch action
@@ -161,11 +168,9 @@ contract CrowdsaleController {
     function startOpenWindow(uint256 tokensLeft, uint256 price) 
         public
         isDutchAuction
-    {   
-        uint256 presalePercent = calcPresalePercent();
-        uint256 presaleTokenSupply = calcPresaleTokenSupply(presalePercent);
-        // Setups up the presale with the necesary amount of tokens based on the result of the dutch auction  
-        presale.setupClaim(presaleTokenSupply, omegaToken);
+    {  
+        stage = Stages.SetupPresaleClaim; 
+        setupPresaleClaim();
         omegaToken.transfer(address(presale), presaleTokenSupply);
         // Add premuim to price
         price = (price * 13)/10;
@@ -183,6 +188,8 @@ contract CrowdsaleController {
         // Only dutch auction or open window sale can end auction
         if (address(dutchAuction) != msg.sender || (stage == Stages.OpenWindow && address(openWindow) !=msg.sender))
             revert();
+        stage = Stages.SetupPresaleClaim;
+        setupPresaleClaim();
         stage = Stages.SaleEnded;
         endTime = now;
     }
@@ -193,20 +200,20 @@ contract CrowdsaleController {
     /// @dev Calculates the token supply for the presale contract
     /// @param presalePercent The percentage of the total tokens that the presale will receive
     function calcPresaleTokenSupply(uint256 presalePercent)
-        private
+        public 
         constant
         returns (uint256)
     {
-        return omegaToken.totalSupply() * (presalePercent/10**18);
+        return omegaToken.totalSupply() * presalePercent / 10**18;
     }
 
     /// @dev Calculates the percentage of the total tokens that the presale will receive
     function calcPresalePercent()
-        private
+        public
         constant
         returns (uint256)
     {   
-        return (5000000*10**18)/ min256(625000*10**18, dutchAuction.totalReceived() * 75/100);
+        return (12500*10**36)/min256(625000*10**18, (500000*10**18) * (75 *10** 16)/(10**18));
     }
 
     /// @dev Calculates the minimum between two numbers
@@ -218,5 +225,14 @@ contract CrowdsaleController {
         returns (uint256) 
     {
         return a < b ? a : b;
+    }
+
+    function setupPresaleClaim()
+        private
+    {   
+        uint256 presalePercent = calcPresalePercent();
+        presaleTokenSupply = calcPresaleTokenSupply(presalePercent);
+        // Sets up the presale with the necesary amount of tokens based on the result of the dutch auction  
+        presale.setupClaim(presaleTokenSupply, omegaToken);
     }
 }
