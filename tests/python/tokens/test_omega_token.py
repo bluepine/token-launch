@@ -15,7 +15,7 @@ class TestContract(AbstractTestContracts):
         self.omega_token= self.create_contract('Tokens/OmegaToken.sol',
                                                   params=(dutch_auction_address, multisig_wallet_address))
         self.assertEqual(self.omega_token.name().decode(), "Omega Token")
-        self.assertEqual(self.omega_token.symbol().decode(), "OMT")
+        self.assertEqual(self.omega_token.symbol().decode(), "OMG")
         self.assertEqual(self.omega_token.decimals(), 18)
         self.assertEqual(self.omega_token.totalSupply(), 100000000 * 10 ** 18)
         self.assertEqual(self.omega_token.balanceOf(dutch_auction_address), 23700000 * 10 ** 18)

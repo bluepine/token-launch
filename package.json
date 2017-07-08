@@ -4,8 +4,7 @@
   },
   "main": "truffle.js",
   "scripts": {
-    "test": "scripts/test.sh",
-    "coverage": "scripts/coverage.sh"
+    "test": "scripts/test.sh"
   },
   "devDependencies": {
     "ethereumjs-testrpc": "^3.0.5",

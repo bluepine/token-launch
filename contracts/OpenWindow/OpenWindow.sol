@@ -1,5 +1,5 @@
 pragma solidity 0.4.11;
-import '../Tokens/OmegaToken.sol';
+import "../Tokens/AbstractToken.sol";
 
 /// @title Open window contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>
@@ -10,64 +10,62 @@ contract OpenWindow {
     event PurchasedTokens(address indexed purchaser, uint amount);
 
     /*
+     *  Constants
+     */
+    uint256 constant public SALE_LENGTH = 30 days;
+
+    /*
      * Storage
      */
     address public wallet;
     address public crowdsaleController;
     Token public omegaToken;
     uint256 public price;
-    uint256 public startBlock;
-    uint256 public freezeBlock;
+    uint256 public startTime;
     bool public emergencyFlag = false;
     uint256 public tokenSupply;
-    Stages public stage;
     mapping (address => uint) public tokensBought;
-
-    enum Stages {
-        SaleStarted,
-        SaleEnded
-    }
 
     /*
      * Modifiers
      */
-    modifier atStage(Stages _stage) {
-        if (stage != _stage)
-            // Contract not in expected state
-            revert();
-        _;
-    }
-
     modifier isCrowdsaleController() {
         if (msg.sender != crowdsaleController)
             revert();
         _;
     }
 
-    /// @dev Fallback function that calls the buy tokens function
-    function ()
-        payable
-    {
-        buy(msg.sender);
+    modifier timedTransitions() {
+        if (now > startTime + SALE_LENGTH)
+            // Ends the sale after 30 days
+            finalizeAuction();
+        _;
     }
 
     /*
      * Public functions
      */
-    /// @dev Contract constructor function sets crowdsale controller and the stage
+    /// @dev Contract constructor function sets crowdsale controller
+    function OpenWindow()
+        public
+    {
+        crowdsaleController = msg.sender;
+    }
+
+    /// @dev Sets up the open window sale
     /// @param _wallet The sale's beneficiary address 
     /// @param _tokenSupply The number of OMG available to sell
     /// @param _price Price of the token in Wei (OMG/Wei pair price)
     /// @param _omegaToken Omega token
-    function OpenWindow(uint256 _tokenSupply, uint256 _price, address _wallet, Token _omegaToken)
+    function setupSale(uint256 _tokenSupply, uint256 _price, address _wallet, Token _omegaToken) 
         public
+        isCrowdsaleController
     {
-        crowdsaleController = msg.sender;
         wallet = _wallet;
         tokenSupply = _tokenSupply;
         omegaToken = _omegaToken;
         price = _price;
-        stage = Stages.SaleStarted;
+        startTime = now;
     }
 
     /// @dev Exchanges ETH for OMG (sale function)
@@ -75,14 +73,14 @@ contract OpenWindow {
     function buy(address receiver)
         payable
         public
+        timedTransitions
         isCrowdsaleController
-        atStage(Stages.SaleStarted)
     {   
         // Check that msg.value is not 0
         uint256 amount = msg.value;
         if (amount < 0)
             revert();
-        uint256 maxWei =(tokenSupply/10**18) * price;
+        uint256 maxWei = tokenSupply * price / 10**18;
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
             amount = maxWei;
@@ -117,8 +115,9 @@ contract OpenWindow {
     /// @dev Finishes the open window and then the overall token sale
     function finalizeAuction()
         private
-        atStage(Stages.SaleStarted)
     {
-        stage = Stages.SaleEnded; 
+        // Finalizes the token sale
+        omegaToken.transfer(crowdsaleController, tokenSupply);
+        tokenSupply = 0;
     }
 }

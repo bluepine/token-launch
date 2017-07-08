@@ -8,7 +8,7 @@ contract OmegaToken is StandardToken {
      *  Constants
      */
     string public constant name = "Omega Token";
-    string public constant symbol = "OMT";
+    string public constant symbol = "OMG";
     uint8 public constant decimals = 18;
 
     /*
@@ -33,7 +33,6 @@ contract OmegaToken is StandardToken {
         balances[omegaMultisig]         = 70000000 * 10**18; // 70 million tokens
         Transfer(0, omegaMultisig, balances[omegaMultisig]);
         assignedTokens                 += balances[omegaMultisig];
-
         if (assignedTokens != totalSupply)
             revert();
     }

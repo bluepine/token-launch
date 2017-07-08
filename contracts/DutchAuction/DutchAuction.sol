@@ -14,7 +14,7 @@ contract DutchAuction {
     /*
      *  Constants
      */
-    uint256 constant public MAX_TOKENS_SOLD = 23700000 * 10**18; // 30M
+    uint256 constant public MAX_TOKENS_SOLD = 23700000 * 10**18; // 23.7 M
     uint256 constant public AUCTION_LENGTH = 5 days;
 
     /*
@@ -80,6 +80,7 @@ contract DutchAuction {
 
     modifier timedTransitions() {
         if (stage == Stages.AuctionStarted && calcTokenPrice() <= calcStopPrice())
+            // Ends the sale after the stop price has been reached
             finalizeAuction();
         _;
     }
@@ -124,12 +125,14 @@ contract DutchAuction {
         stage = Stages.AuctionSetUp;
     }
 
-    /// @dev Starts auction and sets startBlock
+    /// @dev Starts auction and sets startBlock (only works if crowdsale controller is on MainSale stage)
     function startAuction()
         public
         isWallet
         atStage(Stages.AuctionSetUp)
     {
+        if (crowdsaleController.stage() != CrowdsaleController.Stages.MainSale) 
+            revert();
         stage = Stages.AuctionStarted;
         startBlock = block.number;
     }
@@ -224,7 +227,11 @@ contract DutchAuction {
         public
         returns (uint256)
     {
-        return totalReceived * 10**18 / MAX_TOKENS_SOLD + 1;
+        // Blocks after 5 days
+        // uint256 block_diff = 30000;
+        // uint256 rate_of_decrease = 15097573839662448 * block_diff / 6000;
+        // return priceFactor - rate_of_decrease; 
+        return priceFactor - (15097573839662448 * 30000 / 6000) ;
     }
 
     /// @dev Calculates token price
@@ -235,8 +242,11 @@ contract DutchAuction {
         returns (uint)
     {   
         // Calculated at 6,000 blocks mined per day
-        // Auction calculated to stop after 5.76 days
-        return priceFactor * 10 ** 18/ ((block.number - startBlock) * 3  + 7500) + 1;
+        // Auction calculated to stop after 5 days
+        // uint256 block_diff = block.number - startBlock;
+        // uint256 rate_of_decrease = 15097573839662448 * block_diff / 6000;
+        // return priceFactor - rate_of_decrease;
+        return priceFactor - (15097573839662448 * (block.number - startBlock) / 6000);
     }
 
     /*
@@ -247,15 +257,13 @@ contract DutchAuction {
         private
     {
         stage = Stages.AuctionEnded;
-        if (totalReceived == ceiling) {
-            finalPrice = calcTokenPrice();
-            crowdsaleController.finalizeAuction();
-        } else {
-            finalPrice = calcStopPrice();
-            // Auction contract transfers all unsold tokens to the crowdsale controller
-            uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
-            omegaToken.transfer(address(crowdsaleController),  tokensLeft);
+        finalPrice = calcTokenPrice();
+        uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
+        // Auction contract transfers all unsold tokens to the crowdsale controller
+        omegaToken.transfer(address(crowdsaleController), tokensLeft);
+        if (totalReceived == ceiling)
             crowdsaleController.startOpenWindow(tokensLeft, finalPrice);
-        }
+        else
+            crowdsaleController.finishFromDutchAuction();
     }
 }
