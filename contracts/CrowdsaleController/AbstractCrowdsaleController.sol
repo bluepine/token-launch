@@ -20,6 +20,6 @@ contract CrowdsaleController {
     /*
      * Public functions
      */
-    function finalizeAuction();
+    function finishFromDutchAuction();
     function startOpenWindow(uint256 tokensLeft, uint256 price);
 }

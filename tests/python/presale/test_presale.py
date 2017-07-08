@@ -27,8 +27,8 @@ class TestContract(AbstractTestContracts):
         self.presale= self.create_contract('Presale/Presale.sol',
                                                   params=())
 
-        self.assertEqual(self.presale.MAX_PERCENT_OF_PRESALE(), 100 * 10 **16);
-        self.assertEqual(self.presale.MAX_PERCENT_OF_SALE(), 63 * 10 **15);
+        self.assertEqual(self.presale.MAX_PERCENT_OF_PRESALE(), 100 * 10 **18);
+        self.assertEqual(self.presale.MAX_PERCENT_OF_SALE(), 63 * 10 **17);
         self.assertEqual(self.presale.percentOfPresaleSold(), 0);
         self.assertEqual(self.presale.crowdsaleController().decode(), crowdsale_controller_address.hex())
         
@@ -36,27 +36,30 @@ class TestContract(AbstractTestContracts):
         token_supply = 6300000 * 10 ** 18
         # Presale reverts if it doesn't have a token balance equal to the token_supply when setupClaim is called
         self.assertRaises(TransactionFailed, self.presale.setupClaim, token_supply, self.omega_token.address)
-        # Transfer necessary funds to the presale
-        self.omega_token.transfer(self.presale.address, token_supply, sender=keys[2])
-        # Setup the presale
-        self.presale.setupClaim(token_supply, self.omega_token.address)
-        self.assertEqual(self.presale.omegaToken().decode(), self.omega_token.address.hex());
         # Omega team can allocate tokens to presale participants
         buyer_1 = 4
-        percent_of_presale_1 = 5 * 10 ** 16
+        # 5.5%
+        percent_of_presale_1 = 55 * 10 ** 17
         self.presale.usdContribution(accounts[buyer_1], percent_of_presale_1)
         self.assertEqual(self.presale.percentOfPresaleSold(), percent_of_presale_1)
         self.assertEqual(self.presale.presaleAllocations(accounts[buyer_1]), percent_of_presale_1)
         # Omega team cannot allocate more then 100% of presale tokens
         buyer_2 = 5
-        percent_of_presale_2 = 96* 10 ** 16
-        # Buyinng 101% of tokens fails
+        percent_of_presale_2 = 95* 10 ** 18
+        # Buyinng 100.5% of tokens fails
         self.assertRaises(TransactionFailed, self.presale.usdContribution, accounts[buyer_2], percent_of_presale_2)
         buyer_3 = 6
-        percent_of_presale_3 = 95 * 10 ** 16
+        # 94.5%
+        percent_of_presale_3 = 945 * 10 ** 17
         self.presale.usdContribution(accounts[buyer_3], percent_of_presale_3)
         self.assertEqual(self.presale.percentOfPresaleSold(), percent_of_presale_1 + percent_of_presale_3)
         self.assertEqual(self.presale.presaleAllocations(accounts[buyer_3]), percent_of_presale_3)
+        # Transfer necessary funds to the presale
+        self.omega_token.transfer(self.presale.address, token_supply, sender=keys[2])
+        # Setup the presale
+        self.presale.setupClaim(token_supply, self.omega_token.address)
+        self.assertEqual(self.presale.omegaToken().decode(), self.omega_token.address.hex());
+        self.assertEqual(self.presale.totalSupply(), token_supply)
         # Buyers can claim there tokens (permissions will be in the crowdsale controller)
         self.presale.claimTokens(accounts[buyer_1])
         self.omega_token.balanceOf(accounts[buyer_1])

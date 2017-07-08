@@ -15,11 +15,6 @@ class AbstractTestContracts(TestCase):
 
     def __init__(self, *args, **kwargs):
         super(AbstractTestContracts, self).__init__(*args, **kwargs)
-        # t.gas_limit = 500000000000000
-        # self.s = t.Chain()
-        # t.tmk_state_test_prefill(c)  
-        # import pdb; pdb.set_trace()
-        # self.s.block = self.HOMESTEAD_BLOCK
         self.s = t.state()
         self.s.block.number = self.HOMESTEAD_BLOCK
         t.gas_limit = 4712388
@@ -30,7 +25,7 @@ class AbstractTestContracts(TestCase):
         return all(c in string.hexdigits for c in s)
 
     def get_dirs(self, path):
-        abs_contract_path = os.path.realpath(os.path.join(OWN_DIR, '..', '..'))
+        abs_contract_path = os.path.realpath(os.path.join(OWN_DIR, '..', '..', 'contracts'))
         sub_dirs = [x[0] for x in os.walk(abs_contract_path)]
         extra_args = ' '.join(['{}={}'.format(d.split('/')[-1], d) for d in sub_dirs])
         path = '{}/{}'.format(abs_contract_path, path)
