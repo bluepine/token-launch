@@ -81,7 +81,7 @@ contract DutchAuction {
     modifier timedTransitions() {
         if (stage == Stages.AuctionStarted && calcTokenPrice() <= calcStopPrice())
             // Ends the sale after the stop price has been reached
-            finalizeAuction();
+            finalizeSale();
         _;
     }
 
@@ -130,7 +130,8 @@ contract DutchAuction {
         public
         isWallet
         atStage(Stages.AuctionSetUp)
-    {
+    {   
+        // Makes sure that the presale has already occurred
         if (crowdsaleController.stage() != CrowdsaleController.Stages.MainSale) 
             revert();
         stage = Stages.AuctionStarted;
@@ -189,7 +190,7 @@ contract DutchAuction {
         amount = msg.value;
         require(amount > 0);
         // Prevent that more than 90% of tokens are sold. Only relevant if cap not reached
-        uint maxWei = (MAX_TOKENS_SOLD / 10**18) * calcTokenPrice() - totalReceived;
+        uint maxWei = MAX_TOKENS_SOLD * calcTokenPrice() / 10**18 - totalReceived;
         uint maxWeiBasedOnTotalReceived = ceiling - totalReceived;
         if (maxWeiBasedOnTotalReceived < maxWei)
             maxWei = maxWeiBasedOnTotalReceived;
@@ -201,8 +202,8 @@ contract DutchAuction {
         bids[receiver] += amount;
         totalReceived += amount;
         if (amount == maxWei) {
-            // When maxWei is equal to the big amount the auction is ended and finalizeAuction is triggered
-            finalizeAuction();
+            // When maxWei is equal to the big amount the auction is ended and finalizeSale is triggered
+            finalizeSale();
             // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
             receiver.transfer(msg.value - amount);
         }
@@ -231,7 +232,7 @@ contract DutchAuction {
         // uint256 block_diff = 30000;
         // uint256 rate_of_decrease = 15097573839662448 * block_diff / 6000;
         // return priceFactor - rate_of_decrease; 
-        return priceFactor - (15097573839662448 * 30000 / 6000) ;
+        return priceFactor - (15097573839662448 * 30000 / 6000);
     }
 
     /// @dev Calculates token price
@@ -253,7 +254,7 @@ contract DutchAuction {
      *  Private functions
      */
     /// @dev Finishes dutch auction and finalizes the token sale or starts the open window sale depending on how it ends
-    function finalizeAuction()
+    function finalizeSale()
         private
     {
         stage = Stages.AuctionEnded;

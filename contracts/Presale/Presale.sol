@@ -44,17 +44,18 @@ contract Presale {
      */
     /// @dev Allows the Omega team to give presale participants a percent of the presale
     /// @param buyer The address a percentage of the presale is allocated to
-    /// @param presalePercent The percent of presale allocated in exchange for usd
-    function usdContribution(address buyer, uint256 presalePercent) 
+    /// @param _presalePercent The percent of presale allocated in exchange for usd
+    function usdContribution(address buyer, uint256 _presalePercent) 
         external
         isCrowdsaleController
     {
-        if (presalePercent == 0 || buyer == 0x0)
+        if (_presalePercent == 0 || buyer == 0x0)
             revert();
+        uint256 presalePercent = _presalePercent;
         uint256 maxPercentLeft = MAX_PERCENT_OF_PRESALE - percentOfPresaleSold;
-        // Reverts if trying to sell a larger percent of presale than is left
+        // Only allows the max percent of presale left to be allocated
         if (presalePercent > maxPercentLeft)
-            revert();
+            presalePercent = maxPercentLeft;
         presaleAllocations[buyer] = presalePercent;
         percentOfPresaleSold += presalePercent;
     }
