@@ -92,10 +92,7 @@ contract CrowdsaleController {
             fillOrMarket(msg.sender);
         } else if (stage == Stages.SaleEnded) {
             // Use send so that it doesn't throw an error when the msg has no value
-            receiver.send(msg.value);
-        } else if (stage == Stages.TradingStarted) {
-            claimTokens(msg.sender);
-            receiver.send(msg.value);
+            receiver.transfer(msg.value);
         } else {
             revert();
         }
@@ -160,7 +157,7 @@ contract CrowdsaleController {
             openWindow.buy.value(amount)(receiver);
             // Checks if open window sale is over
             if (openWindow.tokenSupply() == 0)
-                finalizeAuction();
+                finalizeSale();
         }  else {
             revert();
         }
@@ -198,7 +195,7 @@ contract CrowdsaleController {
         tokensLeft += 6300000 * 10 ** 18;
         presaleTokenSupply = calcPresaleTokenSupply();
         // Add premuim to price
-        price = (price * 13)/10;
+        price = price * 13/10;
         // transfer required amount of tokens to open window
         omegaToken.transfer(address(openWindow),  tokensLeft - presaleTokenSupply);
         // Create fixed price fixed cap toke sale
@@ -213,7 +210,7 @@ contract CrowdsaleController {
         isDutchAuction
     {
         presaleTokenSupply = calcPresaleTokenSupply();
-        finalizeAuction();
+        finalizeSale();
     }
 
     /// @dev Calculates the token supply for the presale contract
@@ -234,7 +231,7 @@ contract CrowdsaleController {
      *  Private functions
      */
     /// @dev Finishes the token sale
-    function finalizeAuction() 
+    function finalizeSale() 
         private
     {
         setupPresaleClaim();

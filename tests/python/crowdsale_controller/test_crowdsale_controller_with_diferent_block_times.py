@@ -5,6 +5,7 @@ class TestContract(AbstractTestContracts):
     run test with python -m unittest contracts.test.python.crowdsale_controller.test_crowdsale_controller
     """
 
+    BLOCKS_PER_DAY = 6000
     TOTAL_TOKENS = int(100000000 * 10**18)
     WAITING_PERIOD = 60*60*24*7
     FUNDING_GOAL = 62500 * 10**18 # 62,500 Ether ~ 25 million dollars
@@ -85,11 +86,16 @@ class TestContract(AbstractTestContracts):
         # Dutch auction cannow start
         start_auction_data = self.dutch_auction.translator.encode('startAuction', [])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, start_auction_data, sender=keys[wa_1])
-        # Buyer 3 bids through the dutch auction
+        # Buyer 3 bids through the dutch auction on the 2nd day
+        self.s.block.number += self.BLOCKS_PER_DAY * 2
+        # day_2
+        price = self.dutch_auction.calcTokenPrice()
         buyer_3 = 5
         value_3 = 20000 * 10**18  # 20k Ether
         self.dutch_auction.bid(sender=keys[buyer_3], value=value_3)
-        # Buyer 4 bids through the crowdsale controller
+        # Buyer 4 bids through the crowdsale controller on the 4th day
+        self.s.block.number += self.BLOCKS_PER_DAY * 2
+        day_4_token_price = self.dutch_auction.calcTokenPrice()
         buyer_4 = 6
         value_4 = 20000 * 10**18  # 20k Ether
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_4], value=value_4)
@@ -104,9 +110,9 @@ class TestContract(AbstractTestContracts):
         refund_buyer_5 = (value_3 + value_4 + value_5) - self.FUNDING_GOAL
         self.assertGreater(self.s.block.get_balance(accounts[buyer_5]), 0.98 * (value_5 + refund_buyer_5))
         # Make sure correct amounts have been kept in the crowdsale controller (for the presale) and dutch auction as well was transferred to the open window
-        self.assertEqual(round(self.omega_token.balanceOf(self.dutch_auction.address)/10**24, 3), .8)
+        self.assertEqual(round(self.omega_token.balanceOf(self.dutch_auction.address)/10**24, 3), 3.524)
         self.assertEqual(round(self.omega_token.balanceOf(self.crowdsale_controller.address)/10**24, 3), 2)
-        self.assertEqual(round(self.omega_token.balanceOf(self.open_window.address)/10**24, 3), 27.2)
+        self.assertEqual(round(self.omega_token.balanceOf(self.open_window.address)/10**24, 3), 24.476)
         # Open window has the correct token supply and price
         self.assertEqual(self.open_window.tokenSupply(), self.omega_token.balanceOf(self.open_window.address))
         self.assertEqual(round(int(self.open_window.price()), -1), round(int(self.dutch_auction.calcCurrentTokenPrice() * 1.3), -1))
@@ -114,19 +120,19 @@ class TestContract(AbstractTestContracts):
         self.assertEqual(self.crowdsale_controller.stage(), 3)
         # Now fillOrMarket sends Ether to the open window sale
         buyer_6 = 8
-        value_6 =  2000000 * 10**18  # 2 M Ether
+        value_6 =  500000 * 10**18  # 500 K Ether
         self.s.block.set_balance(accounts[buyer_6], value_6 * 2)
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_6], value=value_6)
         # Open window receives buyer 6's purchase
-        self.assertEqual(round(self.open_window.tokensBought(accounts[buyer_6]), -10), round(int(2000000 * 10**18/ self.open_window.price()*10**18), - 10))
+        self.assertEqual(round(self.open_window.tokensBought(accounts[buyer_6]), -10), round(int(value_6/ self.open_window.price()*10**18), - 10))
         self.assertEqual(round(self.open_window.tokenSupply(), -10), round(int(self.omega_token.balanceOf(self.open_window.address) - value_6 * 10**18/self.open_window.price()), -10))
         # After open window ends the remaining value is refunded to the buyer
         buyer_7 = 9
-        value_7 =  2000000 * 10**18  # 2 M Ether
+        value_7 =  500000 * 10**18  # 500 K Ether
         tokensLeft = self.open_window.tokenSupply()
         self.s.block.set_balance(accounts[buyer_7], value_7 * 2)
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_7], value=value_7)
-        # There will be 2e-18 tokens left after the sale ends
+        # Token supply is 0 after open window sale ends
         self.assertEqual(self.open_window.tokenSupply(), 0)
         # Buyer 7 receives the refund
         refund_buyer_7 = value_7 - tokensLeft * self.open_window.price()/10**18
@@ -148,20 +154,21 @@ class TestContract(AbstractTestContracts):
         self.crowdsale_controller.claimTokens(accounts[buyer_6])
         self.crowdsale_controller.claimTokens(accounts[buyer_7])
         presale_tokens = self.TOTAL_TOKENS * .02
-        dutch_auction_tokens = self.TOTAL_TOKENS * .008
-        open_window_tokens = self.TOTAL_TOKENS * .272
+        dutch_auction_tokens = self.TOTAL_TOKENS * .03524
+        open_window_tokens = self.TOTAL_TOKENS * .24476
         # Presale buyers have received the correct amount of tokens
         self.assertEqual(self.omega_token.balanceOf(accounts[buyer_1]), round(int(presale_tokens * .095), -8))
         self.assertEqual(self.omega_token.balanceOf(accounts[buyer_2]), round(int(presale_tokens * .905), -9))
-        buyer_3_tokens = round(int(value_3 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -8)
-        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_3]), -8), buyer_3_tokens)
-        buyer_3_tokens = round(int(value_3 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -8)
-        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_3]), -8), buyer_3_tokens)
-        buyer_4_tokens = round(int(value_4 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -8)
-        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_4]), -8), buyer_4_tokens)
-        buyer_5_tokens = round(int((value_5 - refund_buyer_5) *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -8)
-        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_5]), -8), buyer_5_tokens)
+        buyer_3_tokens = round(int(value_3 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -9)
+        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_3]), -9), buyer_3_tokens)
+        buyer_3_tokens = round(int(value_3 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -9)
+        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_3]), -9), buyer_3_tokens)
+        buyer_4_tokens = round(int(value_4 *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -9)
+        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_4]), -9), buyer_4_tokens)
+        buyer_5_tokens = round(int((value_5 - refund_buyer_5) *10**18/ self.dutch_auction.calcCurrentTokenPrice()), -10)
+        self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_5]), -10), buyer_5_tokens)
         buyer_6_tokens = round(int(value_6 *10**18/ self.open_window.price()), -10)
         self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_6]), -10), buyer_6_tokens)
         buyer_7_tokens = round(int((value_7 - refund_buyer_7) *10**18/ self.open_window.price()), -10)
         self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_7]), -10), buyer_7_tokens)
+

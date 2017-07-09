@@ -38,7 +38,7 @@ contract OpenWindow {
     modifier timedTransitions() {
         if (now > startTime + SALE_LENGTH)
             // Ends the sale after 30 days
-            finalizeAuction();
+            finalizeSale();
         _;
     }
 
@@ -94,7 +94,7 @@ contract OpenWindow {
         tokenSupply = tokenSupply - tokenPurchase;
         tokensBought[receiver] += tokenPurchase;
         if (maxWei == amount)
-            finalizeAuction();
+            finalizeSale();
         PurchasedTokens(msg.sender, tokenPurchase);
     }
 
@@ -113,7 +113,7 @@ contract OpenWindow {
      *  Private functions
      */
     /// @dev Finishes the open window and then the overall token sale
-    function finalizeAuction()
+    function finalizeSale()
         private
     {
         // Finalizes the token sale

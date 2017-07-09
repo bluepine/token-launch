@@ -46,8 +46,6 @@ class TestContract(AbstractTestContracts):
         # Omega team cannot allocate more then 100% of presale tokens
         buyer_2 = 5
         percent_of_presale_2 = 95* 10 ** 18
-        # Buyinng 100.5% of tokens fails
-        self.assertRaises(TransactionFailed, self.presale.usdContribution, accounts[buyer_2], percent_of_presale_2)
         buyer_3 = 6
         # 94.5%
         percent_of_presale_3 = 945 * 10 ** 17
