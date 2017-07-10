@@ -2,7 +2,7 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest contracts.test.python.presale.test_presale
+    run test with python -m unittest tests.python.presale.test_presale
     """
 
     def __init__(self, *args, **kwargs):

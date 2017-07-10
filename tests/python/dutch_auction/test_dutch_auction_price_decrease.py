@@ -2,7 +2,7 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest contracts.test.python.dutch_auction.test_dutch_auction
+    run test with python -m unittest tests.python.dutch_auction.test_dutch_auction_price_decrease
     """
 
     BLOCKS_PER_DAY = 6000
