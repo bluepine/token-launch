@@ -2,7 +2,7 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest contracts.test.python.crowdsale_controller.test_crowdsale_controller
+    run test with python -m unittest tests.python.crowdsale_controller.test_crowdsale_controller_math
     """
 
     def __init__(self, *args, **kwargs):
