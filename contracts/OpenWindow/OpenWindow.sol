@@ -22,7 +22,6 @@ contract OpenWindow {
     Token public omegaToken;
     uint256 public price;
     uint256 public startTime;
-    bool public emergencyFlag = false;
     uint256 public tokenSupply;
     mapping (address => uint) public tokensBought;
 

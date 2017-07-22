@@ -28,7 +28,7 @@ contract DutchAuction {
     uint256 public priceFactor;
     uint256 public startBlock;
     uint256 public endTime;
-    uint256 public totalReceived;
+    uint256 public totalReceived = 0;
     uint256 public finalPrice;
     mapping (address => uint) public bids;
     Stages public stage;
@@ -95,8 +95,8 @@ contract DutchAuction {
     function DutchAuction(address _wallet, uint256 _ceiling, uint256 _priceFactor)
         public
     {
-        if (_wallet == 0x0 || _ceiling == 0x0 || 
-            _priceFactor == 0x0)
+        if (_wallet == 0x0 || _ceiling == 0 || 
+            _priceFactor == 0)
             // Arguments are null
             revert();
         owner = msg.sender;
