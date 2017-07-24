@@ -1,5 +1,5 @@
 pragma solidity 0.4.11;
-import '../Tokens/OmegaToken.sol';
+import 'Tokens/OmegaToken.sol';
 
 /// @title Abstract presale contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>

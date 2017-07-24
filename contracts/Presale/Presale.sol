@@ -1,5 +1,5 @@
 pragma solidity 0.4.11;
-import "../Tokens/AbstractToken.sol";
+import "Tokens/AbstractToken.sol";
 
 /// @title Presale contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>

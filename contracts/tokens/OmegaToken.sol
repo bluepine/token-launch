@@ -1,5 +1,5 @@
 pragma solidity 0.4.11;
-import './StandardToken.sol';
+import 'Tokens/StandardToken.sol';
 
 /// @title Omega token contract
 /// @author Karl Floersh- <karl.floersch@consensys.net>

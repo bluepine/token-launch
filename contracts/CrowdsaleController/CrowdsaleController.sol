@@ -1,9 +1,9 @@
 pragma solidity 0.4.11;
-import '../Wallets/MultiSigWallet.sol';
-import '../Presale/Presale.sol';
-import '../DutchAuction/AbstractDutchAuction.sol';
-import '../Tokens/OmegaToken.sol';
-import '../OpenWindow/OpenWindow.sol';
+import 'Wallets/MultiSigWallet.sol';
+import 'Presale/Presale.sol';
+import 'DutchAuction/AbstractDutchAuction.sol';
+import 'Tokens/OmegaToken.sol';
+import 'OpenWindow/OpenWindow.sol';
 
 /// @title Crowdsale controller token contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>

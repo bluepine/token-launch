@@ -6,15 +6,20 @@ This repo contains the critical contracts required for the OmegaOne token launch
 
 # Installation
 ```
-$ npm install
+$ make
 ```
 
 # Running tests
 ```
-$ npm test
+$ make test
 ```
 
-# Generating Test Coverage
+# Generating ABI 
 ```
-$ npm run coverage
+$ make abi
+```
+
+# Deploying
+```
+$ make deploy
 ```

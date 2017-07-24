@@ -1,5 +1,5 @@
 pragma solidity 0.4.11;
-import "../Tokens/AbstractToken.sol";
+import "Tokens/AbstractToken.sol";
 
 /// @title Abstract open window contract
 /// @author Karl - <karl.floersch@consensys.net>

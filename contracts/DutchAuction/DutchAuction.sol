@@ -1,6 +1,6 @@
 pragma solidity 0.4.11;
-import "../Tokens/AbstractToken.sol";
-import "../CrowdsaleController/AbstractCrowdsaleController.sol";
+import "Tokens/AbstractToken.sol";
+import "CrowdsaleController/AbstractCrowdsaleController.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
 /// @author Karl Floersh - <karl.floersch@consensys.net>
