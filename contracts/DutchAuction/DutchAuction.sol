@@ -1,11 +1,13 @@
 pragma solidity 0.4.11;
 import "Tokens/AbstractToken.sol";
 import "CrowdsaleController/AbstractCrowdsaleController.sol";
+import "Math/SafeMath.sol";
 
 /// @title Dutch auction contract - distribution of Omega tokens using an auction
 /// @author Karl Floersh - <karl.floersch@consensys.net>
 /// Based on code by Stefan George: https://github.com/gnosis/gnosis-contracts/blob/dutch_auction/contracts/solidity/DutchAuction/DutchAuction.sol
 contract DutchAuction {
+    using SafeMath for uint;
     /*
      *  Events
      */
@@ -199,8 +201,8 @@ contract DutchAuction {
             amount = maxWei;
         // Forward funding to ether wallet
         wallet.transfer(amount);
-        bids[receiver] += amount;
-        totalReceived += amount;
+        bids[receiver] = bids[receiver].add(amount);
+        totalReceived  = totalReceived.add(amount);
         if (amount == maxWei) {
             // When maxWei is equal to the big amount the auction is ended and finalizeSale is triggered
             finalizeSale();
@@ -216,7 +218,7 @@ contract DutchAuction {
         public
         isCrowdsaleController
     {
-        uint256 tokenCount = bids[receiver] * 10**18 / finalPrice;
+        uint256 tokenCount = (bids[receiver] * 10**18).div(finalPrice);
         bids[receiver] = 0;
         omegaToken.transfer(receiver, tokenCount);
     }
@@ -232,7 +234,7 @@ contract DutchAuction {
         // uint256 block_diff = 30000;
         // uint256 rate_of_decrease = 15097573839662448 * block_diff / 6000;
         // return priceFactor - rate_of_decrease; 
-        return priceFactor - (15097573839662448 * 30000 / 6000);
+        return priceFactor.sub(15097573839662448 * 30000 / 6000);
     }
 
     /// @dev Calculates token price
@@ -247,7 +249,7 @@ contract DutchAuction {
         // uint256 block_diff = block.number - startBlock;
         // uint256 rate_of_decrease = 15097573839662448 * block_diff / 6000;
         // return priceFactor - rate_of_decrease;
-        return priceFactor - (15097573839662448 * (block.number - startBlock) / 6000);
+        return priceFactor.sub((15097573839662448 * (block.number.sub(startBlock))).div(6000));
     }
 
     /*
@@ -259,7 +261,7 @@ contract DutchAuction {
     {
         stage = Stages.AuctionEnded;
         finalPrice = calcTokenPrice();
-        uint256 tokensLeft = MAX_TOKENS_SOLD - totalReceived * 10**18 / finalPrice;
+        uint256 tokensLeft = MAX_TOKENS_SOLD.sub((totalReceived * 10**18).div(finalPrice));
         // Auction contract transfers all unsold tokens to the crowdsale controller
         omegaToken.transfer(address(crowdsaleController), tokensLeft);
         if (totalReceived == ceiling)

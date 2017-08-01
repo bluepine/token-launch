@@ -1,9 +1,11 @@
 pragma solidity 0.4.11;
 import "Tokens/AbstractToken.sol";
+import "Math/SafeMath.sol";
 
 /// @title Open window contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>
 contract OpenWindow {
+    using SafeMath for uint;
     /*
      * Events
      */
@@ -79,19 +81,19 @@ contract OpenWindow {
         uint256 amount = msg.value;
         if (amount < 0)
             revert();
-        uint256 maxWei = tokenSupply * price / 10**18;
+        uint256 maxWei = tokenSupply.mul(price) / 10**18;
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {
             amount = maxWei;
             // Send change back to receiver address. In case of a ShapeShift bid the user receives the change back directly
-            receiver.transfer(msg.value - amount);
+            receiver.transfer(msg.value.sub(amount));
         }
-        uint256 tokenPurchase = amount * 10 ** 18/ price;
+        uint256 tokenPurchase = (amount * 10 ** 18).div(price);
         // Forward received ether to the wallet
         wallet.transfer(amount);
         // Transfer the sum of tokens tokenPurchase to the msg.sender
-        tokenSupply = tokenSupply - tokenPurchase;
-        tokensBought[receiver] += tokenPurchase;
+        tokenSupply = tokenSupply.sub(tokenPurchase);
+        tokensBought[receiver] = tokensBought[receiver].add(tokenPurchase);
         if (maxWei == amount)
             finalizeSale();
         PurchasedTokens(msg.sender, tokenPurchase);

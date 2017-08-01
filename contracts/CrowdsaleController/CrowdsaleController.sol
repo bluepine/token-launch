@@ -8,6 +8,7 @@ import 'OpenWindow/OpenWindow.sol';
 /// @title Crowdsale controller token contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>
 contract CrowdsaleController {
+    using SafeMath for uint;
     /*
      *  Events
      */
@@ -192,15 +193,15 @@ contract CrowdsaleController {
         isDutchAuction
     {  
         // Add in tokens already allocated for the presale
-        tokensLeft += 6300000 * 10 ** 18;
+        tokensLeft = tokensLeft.add(6300000 * 10 ** 18);
         presaleTokenSupply = calcPresaleTokenSupply();
         // Add premuim to price
-        price = price * 13/10;
+        price = price.mul(13).div(10);
         // transfer required amount of tokens to open window
-        omegaToken.transfer(address(openWindow),  tokensLeft - presaleTokenSupply);
+        omegaToken.transfer(address(openWindow),  tokensLeft.sub(presaleTokenSupply));
         // Create fixed price fixed cap toke sale
-        openWindow.setupSale(tokensLeft - presaleTokenSupply, price, wallet, omegaToken); 
-        StartOpenWindow(now, tokensLeft - presaleTokenSupply, price);
+        openWindow.setupSale(tokensLeft.sub(presaleTokenSupply), price, wallet, omegaToken); 
+        StartOpenWindow(now, tokensLeft.sub(presaleTokenSupply), price);
         stage = Stages.OpenWindow;
     }
 
@@ -224,7 +225,7 @@ contract CrowdsaleController {
         // uint256 valueCap = exchangeRateInWei * 250000000; // 250 million USD in wei
         // uint256 presaleCap = exchangeRateInWei * 5000000; // 5 million USD in wei
         // return omegaToken.totalSupply() * presaleCap/min256(valueCap, reverseDutchValuationWithPremium);
-        return omegaToken.totalSupply() * exchangeRateInWei * 5000000/ min256(exchangeRateInWei * 250000000, ((100000000 * 10 ** 18/omegaToken.balanceOf(dutchAuction) * 625000*10**18 * 3) / 4));
+        return omegaToken.totalSupply().mul(exchangeRateInWei).mul(5000000)/ min256(exchangeRateInWei.mul(250000000), ((100000000 * 10 ** 18/omegaToken.balanceOf(dutchAuction) * 625000*10**18 * 3).div(4)));
     }
 
     /*

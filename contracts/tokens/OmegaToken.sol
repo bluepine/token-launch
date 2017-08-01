@@ -28,11 +28,11 @@ contract OmegaToken is StandardToken {
         uint256 assignedTokens          = balances[dutchAuction];
         Transfer(0, dutchAuction, balances[dutchAuction]);
         balances[crowdsaleController]   = 6300000 * 10**18; // 6.3 million
-        assignedTokens                 += balances[crowdsaleController];
+        assignedTokens                  = assignedTokens.add(balances[crowdsaleController]);
         Transfer(0, dutchAuction, balances[crowdsaleController]);
         balances[omegaMultisig]         = 70000000 * 10**18; // 70 million tokens
         Transfer(0, omegaMultisig, balances[omegaMultisig]);
-        assignedTokens                 += balances[omegaMultisig];
+        assignedTokens                  = assignedTokens.add(balances[omegaMultisig]);
         if (assignedTokens != totalSupply)
             revert();
     }

@@ -15,7 +15,6 @@ formatter = logging.Formatter('%(asctime)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-
 class EthABI:
 
     def __init__(self, f, contract_dir, abi_dir):
@@ -34,8 +33,7 @@ class EthABI:
 
     def create_abi(self, file_path):
         # create list of valid paths
-        absolute_path = self.contract_dir if self.contract_dir.startswith('/') else '{}/{}'.format(os.getcwd(),
-                                                                                                   self.contract_dir)
+        absolute_path = self.contract_dir if self.contract_dir.startswith('/') else '{}/{}'.format(os.getcwd(), self.contract_dir)
         sub_dirs = [x[0] for x in os.walk(absolute_path)]
         extra_args = ' '.join(['{}={}'.format(d.split('/')[-1], d) for d in sub_dirs])
         try:

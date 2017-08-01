@@ -23,7 +23,7 @@ logger.addHandler(ch)
 
 class EthDeploy:
 
-    def __init__(self, protocol, host, port, gas, gas_price, contract_dir, optimize, account, private_key_path):
+    def __init__(self, host, port, gas, gas_price, contract_dir, optimize, account, private_key_path):
         # establish rpc connection
         self.web3 = Web3(KeepAliveRPCProvider(host=host, port=port))
         self.solidity = _solidity.solc_wrapper()
@@ -203,7 +203,6 @@ class EthDeploy:
 
 @click.command()
 @click.option('--f', help='File with instructions')
-@click.option('--protocol', default="http", help='Ethereum node protocol')
 @click.option('--host', default="localhost", help='Ethereum node host')
 @click.option('--port', default='8545', help='Ethereum node port')
 @click.option('--gas', default=4000000, help='Transaction gas')
@@ -212,8 +211,8 @@ class EthDeploy:
 @click.option('--optimize', is_flag=True, help='Use solidity optimizer to compile code')
 @click.option('--account', help='Default account used as from parameter')
 @click.option('--private-key-path', help='Path to private key')
-def setup(f, protocol, host, port, gas, gas_price, contract_dir, optimize, account, private_key_path):
-    deploy = EthDeploy(protocol, host, port, gas, gas_price, contract_dir, optimize, account, private_key_path)
+def setup(f, host, port, gas, gas_price, contract_dir, optimize, account, private_key_path):
+    deploy = EthDeploy(host, port, gas, gas_price, contract_dir, optimize, account, private_key_path)
     deploy.process(f)
 
 if __name__ == '__main__':

@@ -1,8 +1,10 @@
 pragma solidity 0.4.11;
 import "Tokens/AbstractToken.sol";
+import "Math/SafeMath.sol";
 
 /// @title Standard token contract - Standard token interface implementation
 contract StandardToken is Token {
+  using SafeMath for uint;
     /*
      *  Storage
      */
@@ -21,11 +23,8 @@ contract StandardToken is Token {
         public
         returns (bool)
     {
-        if (balances[msg.sender] < value)
-            // Balance too low
-            revert();
-        balances[msg.sender] -= value;
-        balances[to] += value;
+        balances[msg.sender] = balances[msg.sender].sub(value);
+        balances[to] = balances[to].add(value);
         Transfer(msg.sender, to, value);
         return true;
     }
@@ -39,12 +38,12 @@ contract StandardToken is Token {
         public
         returns (bool)
     {
-        if (balances[from] < value || allowances[from][msg.sender] < value)
-            // Balance or allowance too low
-            revert();
-        balances[to] += value;
-        balances[from] -= value;
-        allowances[from][msg.sender] -= value;
+        // if (balances[from] < value || allowances[from][msg.sender] < value)
+        //     // Balance or allowance too low
+        //     revert();
+        balances[to] = balances[to].add(value);
+        balances[from] = balances[from].sub(value);
+        allowances[from][msg.sender] = allowances[from][msg.sender].sub(value);
         Transfer(from, to, value);
         return true;
     }
@@ -57,6 +56,8 @@ contract StandardToken is Token {
         public
         returns (bool)
     {
+        if ((value == 0) || (allowances[msg.sender][_spender] == 0))
+            revert();
         allowances[msg.sender][_spender] = value;
         Approval(msg.sender, _spender, value);
         return true;
