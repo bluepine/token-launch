@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import "Tokens/AbstractToken.sol";
 import "Math/SafeMath.sol";
 
@@ -31,14 +31,13 @@ contract OpenWindow {
      * Modifiers
      */
     modifier isCrowdsaleController() {
-        if (msg.sender != crowdsaleController)
-            revert();
+        require(msg.sender == crowdsaleController);
         _;
     }
 
     modifier timedTransitions() {
+        // Ends the sale after 30 days
         if (now > startTime + SALE_LENGTH)
-            // Ends the sale after 30 days
             finalizeSale();
         _;
     }
@@ -54,33 +53,33 @@ contract OpenWindow {
     }
 
     /// @dev Sets up the open window sale
+    /// @param _tokenSupply The number of OMT available to sell
+    /// @param _price Price of the token in Wei (OMT/Wei pair price)
     /// @param _wallet The sale's beneficiary address 
-    /// @param _tokenSupply The number of OMG available to sell
-    /// @param _price Price of the token in Wei (OMG/Wei pair price)
     /// @param _omegaToken Omega token
     function setupSale(uint256 _tokenSupply, uint256 _price, address _wallet, Token _omegaToken) 
         public
         isCrowdsaleController
     {
-        wallet = _wallet;
+        require(_tokenSupply != 0 && _price != 0 && _wallet != 0x0 && address(_omegaToken) != 0x0);
         tokenSupply = _tokenSupply;
-        omegaToken = _omegaToken;
         price = _price;
+        wallet = _wallet;
+        omegaToken = _omegaToken;
         startTime = now;
     }
 
-    /// @dev Exchanges ETH for OMG (sale function)
-    /// @notice You're about to purchase the equivalent of `msg.value` Wei in OMG tokens
+    /// @dev Exchanges ETH for OMT (sale function)
+    /// @notice You're about to purchase the equivalent of `msg.value` Wei in OMT tokens
     function buy(address receiver)
-        payable
         public
+        payable
         timedTransitions
         isCrowdsaleController
     {   
         // Check that msg.value is not 0
         uint256 amount = msg.value;
-        if (amount < 0)
-            revert();
+        require(amount != 0);
         uint256 maxWei = tokenSupply.mul(price) / 10**18;
         //Cannot purchase more tokens than this contract has available to sell
         if (amount > maxWei) {

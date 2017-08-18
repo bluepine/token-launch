@@ -1,4 +1,4 @@
-from ethereum import _solidity
+from ethereum.tools import _solidity
 from subprocess import CalledProcessError
 import click
 import json

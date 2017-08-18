@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import 'Tokens/StandardToken.sol';
 
 /// @title Omega token contract
@@ -7,33 +7,34 @@ contract OmegaToken is StandardToken {
     /*
      *  Constants
      */
-    string public constant name = "Omega Token";
-    string public constant symbol = "OMG";
-    uint8 public constant decimals = 18;
+    string public constant NAME = "Omega Token";
+    string public constant SYMBOL = "OMT";
+    uint256 public constant DECIMALS = 18;
+    uint256 constant TOTAL_SUPPLY = 100000000 * 10**DECIMALS; // 100 million tokens
+    uint256 public constant DUTCH_AUCTION_ALLOCATION = 23700000 * 10**DECIMALS; // 23.7 million tokens
+    uint256 public constant CROWDSALE_CONTROLLER_ALLOCATION = 6300000 * 10**DECIMALS; // 6.3 million
+    uint256 public constant OMEGA_MULTISIG_ALLOCATION = 70000000 * 10**DECIMALS; // 70 million tokens
 
     /*
-     * Public functions
+     *  Public functions
      */
     function OmegaToken(address dutchAuction, address omegaMultisig) 
         public
     {
-        if (dutchAuction  == 0x0 || 
-            omegaMultisig == 0x0 ||
-            msg.sender    == 0x0)
-            // Addresses should not be null
-            revert();
+        // Addresses should not be null
+        require(dutchAuction != 0x0 && omegaMultisig != 0x0 && msg.sender != 0x0);
         address crowdsaleController = msg.sender;
-        totalSupply                     = 100000000 * 10**18; // 100 million tokens
-        balances[dutchAuction]          = 23700000 * 10**18; // 23.7 million tokens
-        uint256 assignedTokens          = balances[dutchAuction];
-        Transfer(0, dutchAuction, balances[dutchAuction]);
-        balances[crowdsaleController]   = 6300000 * 10**18; // 6.3 million
-        assignedTokens                  = assignedTokens.add(balances[crowdsaleController]);
-        Transfer(0, dutchAuction, balances[crowdsaleController]);
-        balances[omegaMultisig]         = 70000000 * 10**18; // 70 million tokens
-        Transfer(0, omegaMultisig, balances[omegaMultisig]);
-        assignedTokens                  = assignedTokens.add(balances[omegaMultisig]);
-        if (assignedTokens != totalSupply)
-            revert();
+        totalSupply = TOTAL_SUPPLY; // 100 million tokens
+        allocateTokens(dutchAuction, DUTCH_AUCTION_ALLOCATION);
+        allocateTokens(crowdsaleController, CROWDSALE_CONTROLLER_ALLOCATION);
+        allocateTokens(omegaMultisig, OMEGA_MULTISIG_ALLOCATION);
+        require(DUTCH_AUCTION_ALLOCATION + CROWDSALE_CONTROLLER_ALLOCATION + OMEGA_MULTISIG_ALLOCATION == totalSupply);
+    }
+
+    function allocateTokens(address _to, uint256 _amount)
+        private
+    {
+        balances[_to] = _amount;
+        Transfer(0, _to, balances[_to]);
     }
 }

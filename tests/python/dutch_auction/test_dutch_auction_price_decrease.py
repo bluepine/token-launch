@@ -26,12 +26,14 @@ class TestContract(AbstractTestContracts):
         )
         self.multisig_wallet = self.create_contract('Wallets/MultiSigWallet.sol',
                                                     params=constructor_parameters)
+        self.s.mine()
         # Create dutch auction with ceiling of 62.5k Ether and price factor of 78125000000000000 (start price in wei per token for duch)
         self.dutch_auction = self.create_contract('DutchAuction/DutchAuction.sol',
                                                   params=(self.multisig_wallet.address, 62500 * 10**18,  78125000000000000))
         # Create Omega token
         self.crowdsale_controller = self.create_contract('CrowdsaleController/CrowdsaleController.sol', 
                                                         params=(self.multisig_wallet.address, self.dutch_auction, 2500000000000000))
+        self.s.mine()
         # Get the omega token contract that the crowdsale controller deployed
         omega_token_address = self.crowdsale_controller.omegaToken()
         omega_token_abi = self.create_abi('Tokens/OmegaToken.sol')
@@ -51,49 +53,50 @@ class TestContract(AbstractTestContracts):
         # Check the token price
         day_0_token_price = self.dutch_auction.calcTokenPrice()
         self.assertEqual(day_0_token_price, 78125000000000000)
-        self.s.block.number += self.BLOCKS_PER_DAY
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY
         # Check the token price
         day_1_token_price = self.dutch_auction.calcTokenPrice()
         self.assertEqual(day_1_token_price, 78125000000000000 - decrease_per_day)
         bidder_1 = 3
         value_1 = 10 * 10**18 # 10K Ether
         self.dutch_auction.bid(sender=keys[bidder_1], value=value_1)
-        self.s.block.number += self.BLOCKS_PER_DAY
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY
         # Check the token price
         day_2_token_price = self.dutch_auction.calcTokenPrice() 
         self.assertEqual(day_2_token_price, 78125000000000000 - decrease_per_day * 2)
         bidder_2 = 4
         value_2 = 10 * 10**18 # 10K Ether
         self.dutch_auction.bid(sender=keys[bidder_2], value=value_2)
-        self.s.block.number += self.BLOCKS_PER_DAY
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY
+        # self.s.chain.state.block_number = self.s.head_state.block_number
         # Check the token price
         day_3_token_price = self.dutch_auction.calcTokenPrice() 
         self.assertEqual(day_3_token_price, 78125000000000000 - decrease_per_day * 3)
         bidder_3 = 5
         value_3 = 10 * 10**18 # 10K Ether
         self.dutch_auction.bid(sender=keys[bidder_3], value=value_3)
-        self.s.block.number += self.BLOCKS_PER_DAY
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY
         # Check the token price
         day_4_token_price = self.dutch_auction.calcTokenPrice() 
         self.assertEqual(day_4_token_price, 78125000000000000 - decrease_per_day * 4)
         bidder_4 = 6
         value_4 = 10 * 10**18 # 10K Ether
         self.dutch_auction.bid(sender=keys[bidder_4], value=value_4)
-        self.s.block.number += self.BLOCKS_PER_DAY
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY
         # Check the token price
         day_5_token_price = self.dutch_auction.calcTokenPrice()
         self.assertEqual(day_5_token_price, 78125000000000000 - decrease_per_day * 5)  
         # Auction ends after 5 days and no more bids are accepted
         bidder_5 = 7
         value_5 = 10 * 10**18 # 10K Ether
-        self.assertRaises(TransactionFailed, self.dutch_auction.bid, sender=keys[bidder_5], value=value_5)
+        self.assert_tx_failed(lambda: self.dutch_auction.bid(sender=keys[bidder_5], value=value_5))
         self.assertEqual(self.dutch_auction.calcTokenPrice(), self.dutch_auction.calcStopPrice())
         # Sale is over
         self.dutch_auction.updateStage()
         self.assertEqual(self.dutch_auction.stage(), 3)
         self.assertEqual(self.crowdsale_controller.stage(), 4)
         # Bidders claim their tokens throught the crowdsale controller after the waiting period is over
-        self.s.block.timestamp += self.WAITING_PERIOD + 1
+        self.s.head_state.timestamp += self.WAITING_PERIOD + 1
         self.crowdsale_controller.claimTokens(accounts[bidder_1])
         self.crowdsale_controller.claimTokens(accounts[bidder_2])
         self.crowdsale_controller.claimTokens(accounts[bidder_3])

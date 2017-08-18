@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import "Tokens/AbstractToken.sol";
 
 /// @title Presale contract
@@ -8,7 +8,6 @@ contract Presale {
     /*
      *  Constants
      */
-    uint256 constant public MAX_PERCENT_OF_SALE = 63 * 10**17;
     uint256 constant public MAX_PERCENT_OF_PRESALE = 100 * 10**18;
 
     /*
@@ -24,8 +23,7 @@ contract Presale {
      *  Modifiers
      */
     modifier isCrowdsaleController() {
-        if (msg.sender != crowdsaleController)
-            revert();
+        require(msg.sender == crowdsaleController);
         _;
     }
 
@@ -49,14 +47,13 @@ contract Presale {
         external
         isCrowdsaleController
     {
-        if (_presalePercent == 0 || buyer == 0x0)
-            revert();
+        require(_presalePercent != 0 && buyer != 0x0);
         uint256 presalePercent = _presalePercent;
         uint256 maxPercentLeft = MAX_PERCENT_OF_PRESALE - percentOfPresaleSold;
         // Only allows the max percent of presale left to be allocated
         if (presalePercent > maxPercentLeft)
             presalePercent = maxPercentLeft;
-        presaleAllocations[buyer] = presalePercent;
+        presaleAllocations[buyer] += presalePercent;
         percentOfPresaleSold += presalePercent;
     }
 
@@ -67,8 +64,7 @@ contract Presale {
         external
         isCrowdsaleController
     {
-        if (_omegaToken.balanceOf(this) != _totalSupply)
-            revert();
+        require(_omegaToken.balanceOf(this) >= _totalSupply);
         totalSupply = _totalSupply;
         omegaToken = _omegaToken;
     }

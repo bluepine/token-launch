@@ -1,6 +1,6 @@
-from ethereum import tester as t
-from ethereum.tester import keys, accounts, TransactionFailed, ABIContract
-from ethereum import _solidity
+from ethereum import utils
+from ethereum.tools.tester import keys, accounts, TransactionFailed, ABIContract
+from ethereum.tools import _solidity, tester as t
 from ethereum.abi import ContractTranslator
 # standard libraries
 from unittest import TestCase
@@ -11,18 +11,20 @@ OWN_DIR = os.path.dirname(os.path.realpath(__file__))
 
 class AbstractTestContracts(TestCase):
 
-    HOMESTEAD_BLOCK = 1150000
-
     def __init__(self, *args, **kwargs):
         super(AbstractTestContracts, self).__init__(*args, **kwargs)
-        self.s = t.state()
-        self.s.block.number = self.HOMESTEAD_BLOCK
+        self.s = t.Chain({account: {'balance': 10**30}for account in t.accounts})
         t.gas_limit = 4712388
         
 
     @staticmethod
     def is_hex(s):
         return all(c in string.hexdigits for c in s)
+
+    def assert_tx_failed(self, function_to_test, exception=TransactionFailed):
+        snapshot = self.s.snapshot()
+        self.assertRaises(exception, function_to_test)
+        self.s.revert(snapshot)
 
     def get_dirs(self, path):
         abs_contract_path = os.path.realpath(os.path.join(OWN_DIR, '..', '..', 'contracts'))
@@ -40,9 +42,11 @@ class AbstractTestContracts(TestCase):
         return ContractTranslator(abi)
 
     def create_contract(self, path, params=None, libraries=None, sender=None):
+        contract_name = path.split('/')[1]
+        contract_name += ':' + contract_name.split('.')[0]
         path, extra_args = self.get_dirs(path)
         if params:
-            params = [x.address if isinstance(x, t.ABIContract) else x for x in params]
+            params = [x.address if isinstance(x, ABIContract) else x for x in params]
         if libraries:
             for name, address in libraries.items():
                 if type(address) == str:
@@ -50,14 +54,14 @@ class AbstractTestContracts(TestCase):
                         libraries[name] = address
                     else:
                         libraries[name] = ContractTranslator.encode_function_call(address, 'hex')
-                elif isinstance(address, t.ABIContract):
+                elif isinstance(address, ABIContract):
                     libraries[name] = ContractTranslator.encode_function_call(address.address, 'hex')
                 else:
                     raise ValueError
-        return self.s.abi_contract(None,
-                                   path=path,
-                                   constructor_parameters=params,
-                                   libraries=libraries,
-                                   language='solidity',
-                                   extra_args=extra_args,
-                                   sender=keys[sender if sender else 0])
+        compiler = t.languages['solidity']
+        combined = _solidity.compile_file(path, libraries=libraries, combined='bin,abi', optimize=True, extra_args=extra_args)
+        abi = combined[contract_name]['abi']
+        ct = ContractTranslator(abi)
+        code = combined[contract_name]['bin'] + (ct.encode_constructor_arguments(params) if params else b'')
+        address = self.s.tx(sender=keys[sender if sender else 0], to=b'', value=0, data=code)
+        return ABIContract(self.s, abi, address)

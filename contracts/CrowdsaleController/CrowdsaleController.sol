@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import 'Wallets/MultiSigWallet.sol';
 import 'Presale/Presale.sol';
 import 'DutchAuction/AbstractDutchAuction.sol';
@@ -26,7 +26,7 @@ contract CrowdsaleController {
      */
     address public wallet;
     Presale public presale;
-    DutchAuction public dutchAuction;
+    DutchAuction dutchAuction;
     OpenWindow public openWindow;
     OmegaToken public omegaToken;
     address public owner;
@@ -34,7 +34,7 @@ contract CrowdsaleController {
     uint256 public endTime;
     uint256 public presaleTokenSupply;
     uint256 public exchangeRateInWei; // 1 usd to wei
-    address public receiver;
+    address receiver;
 
     enum Stages {
         Deployed,
@@ -49,17 +49,15 @@ contract CrowdsaleController {
      *  Modifiers
      */
     modifier isOwner() {
-        if (msg.sender != owner)
-            // Only owner is allowed to proceed
-            revert();
+        // Only owner is allowed to proceed
+        require(msg.sender == owner);
         _;
     }
 
     modifier isDutchAuction() {
-        if (msg.sender != address(dutchAuction))
-            // Only dutch auction is allowed to proceed
-            revert();
-        _; 
+        // Only dutch auction is allowed to proceed
+        require(msg.sender == address(dutchAuction));
+        _;
     }
 
     modifier timedTransitions() {
@@ -69,19 +67,16 @@ contract CrowdsaleController {
     }
 
     modifier atStage(Stages _stage) {
-        if (stage != _stage) {
-            // Contract not in expected state
-            revert();
-        }
+        // Check if contracted is in expected state
+        require(stage == _stage);
         _;
     }
 
-    modifier isValidPayload(address receiver) {
-        if (msg.data.length != 4 && msg.data.length != 36
-            || receiver == address(this)
-            || receiver == address(omegaToken))
-            // Payload length has to have correct length and receiver should not be dutch auction or omega token contract
-            revert();
+    modifier isValidPayload(address _receiver) {
+        // Payload length has to have correct length and receiver should not be dutch auction or omega token contract
+        require((msg.data.length == 4 || msg.data.length == 36)
+            && _receiver != address(this)
+            && _receiver != address(omegaToken));
         _;
     }
 
@@ -92,7 +87,7 @@ contract CrowdsaleController {
         if (stage == Stages.MainSale) {
             fillOrMarket(msg.sender);
         } else if (stage == Stages.SaleEnded) {
-            // Use send so that it doesn't throw an error when the msg has no value
+            // Use transfer so that it doesn't throw an error when the msg has no value
             receiver.transfer(msg.value);
         } else {
             revert();
@@ -103,11 +98,11 @@ contract CrowdsaleController {
     /// @param _wallet Omega multisig wallet
     /// @param _exchangeRateInWei Wei equivalent of 1 usd
     function CrowdsaleController(address _wallet, DutchAuction _dutchAuction, uint256 _exchangeRateInWei) 
+        public
     {
         // Initialize gateway to both contracts
-        if (_wallet == 0x0 || address(_dutchAuction) == 0x0 || _exchangeRateInWei == 0)
-            // An argument is null
-            revert();
+        // Check for null arguments
+        require(_wallet != 0x0 && address(_dutchAuction) != 0x0 && _exchangeRateInWei != 0);
         owner = msg.sender;
         wallet = _wallet;
         dutchAuction = _dutchAuction;
@@ -142,15 +137,16 @@ contract CrowdsaleController {
     }
 
     /// @dev Determines whether value sent to crowdsale controller should got to the dutch auction or to the open window contracts
-    /// @param receiver Bid on or bought tokens will be assigned to this address if set
-    function fillOrMarket(address receiver) 
+    /// @param _receiver Bid on or bought tokens will be assigned to this address if set
+    function fillOrMarket(address _receiver) 
         public
         payable
-        isValidPayload(receiver)
+        isValidPayload(_receiver)
     {
         // If a bid is done on behalf of a user via ShapeShift, the receiver address is set
-        if (receiver == 0x0)
-            receiver = msg.sender;
+        if (_receiver == 0x0)
+            _receiver = msg.sender;
+        receiver = _receiver;
         uint256 amount = msg.value;
         if (stage == Stages.MainSale) {
             dutchAuction.bid.value(amount)(receiver);
@@ -159,21 +155,22 @@ contract CrowdsaleController {
             // Checks if open window sale is over
             if (openWindow.tokenSupply() == 0)
                 finalizeSale();
-        }  else {
+        } else {
             revert();
         }
     }
 
     /// @dev Claims tokens for bidder after auction
-    /// @param receiver Tokens will be assigned to this address if set
-    function claimTokens(address receiver)
+    /// @param _receiver Tokens will be assigned to this address if set
+    function claimTokens(address _receiver)
         public
-        isValidPayload(receiver)
+        isValidPayload(_receiver)
         timedTransitions
         atStage(Stages.TradingStarted)
     {   
-        if (receiver == 0x0)
-            receiver = msg.sender;
+        if (_receiver == 0x0)
+            _receiver = msg.sender;
+        receiver = _receiver;
         // Checks if the receiver has any tokens in each contract and if they do claims their tokens
         if (dutchAuction.bids(receiver) > 0)
             dutchAuction.claimTokens(receiver);
@@ -225,7 +222,7 @@ contract CrowdsaleController {
         // uint256 valueCap = exchangeRateInWei * 250000000; // 250 million USD in wei
         // uint256 presaleCap = exchangeRateInWei * 5000000; // 5 million USD in wei
         // return omegaToken.totalSupply() * presaleCap/min256(valueCap, reverseDutchValuationWithPremium);
-        return omegaToken.totalSupply().mul(exchangeRateInWei).mul(5000000)/ min256(exchangeRateInWei.mul(250000000), ((100000000 * 10 ** 18/omegaToken.balanceOf(dutchAuction) * 625000*10**18 * 3).div(4)));
+        return omegaToken.totalSupply().mul(exchangeRateInWei).mul(5000000)/min256(exchangeRateInWei.mul(MAIN_SALE_VALUE_CAP),((100000000 * 10 ** 18/omegaToken.balanceOf(dutchAuction) * 625000*10**18 * 3).div(4)));
     }
 
     /*

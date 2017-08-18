@@ -18,12 +18,14 @@ class TestContract(AbstractTestContracts):
         )
         self.multisig_wallet = self.create_contract('Wallets/MultiSigWallet.sol',
                                                     params=constructor_parameters)
+        self.s.mine()
         # Create dutch auction with ceiling of 62.5k Ether and price factor of 78125000000000000
         self.dutch_auction = self.create_contract('DutchAuction/DutchAuction.sol',
                                                   params=(self.multisig_wallet.address, 62500 * 10**18, 78125000000000000))
         # Create Omega token
         self.crowdsale_controller = self.create_contract('CrowdsaleController/CrowdsaleController.sol', 
                                                         params=(self.multisig_wallet.address, self.dutch_auction, 2500000000000000))
+        self.s.mine()
         # Get the omega token contract that the crowdsale controller deployed
         omega_token_address = self.crowdsale_controller.omegaToken()
         omega_token_abi = self.create_abi('Tokens/OmegaToken.sol')
@@ -43,9 +45,6 @@ class TestContract(AbstractTestContracts):
         # Sets up dutch auction total received for presale math
         bidder_1 = 4
         total_received = 62500 * 10 ** 18 #  62.5k Ether
-        self.s.block.set_balance(accounts[bidder_1], total_received * 2)
         self.dutch_auction.bid(sender=keys[bidder_1], value=total_received)
         # Check that the presale token supply is calculated correctly
         self.assertEqual(int(self.crowdsale_controller.calcPresaleTokenSupply()), 2000000 * 10**18)
-        
-

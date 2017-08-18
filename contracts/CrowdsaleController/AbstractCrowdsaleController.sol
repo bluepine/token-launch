@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 
 /// @title Abstract crowdsale controller contract - Functions to be implemented by crowdsale controller contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>

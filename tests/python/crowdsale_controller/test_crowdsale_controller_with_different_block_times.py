@@ -1,4 +1,4 @@
-from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFailed
+from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFailed, utils
 
 class TestContract(AbstractTestContracts):
     """
@@ -25,12 +25,14 @@ class TestContract(AbstractTestContracts):
         )
         self.multisig_wallet = self.create_contract('Wallets/MultiSigWallet.sol',
                                                     params=constructor_parameters)
+        self.s.mine()
         # Create dutch auction with ceiling of 2 billion and price factor of 200,000
         self.dutch_auction = self.create_contract('DutchAuction/DutchAuction.sol',
                                                     params=(self.multisig_wallet.address, 62500 * 10 ** 18, 78125000000000000))
         # Create crowdsale controller
         self.crowdsale_controller = self.create_contract('CrowdsaleController/CrowdsaleController.sol', 
                                                         params=(self.multisig_wallet.address, self.dutch_auction, 2500000000000000))
+        self.s.mine()
         # Get the omega token contract that the crowdsale controller deployed
         omega_token_address = self.crowdsale_controller.omegaToken()
         presale_address = self.crowdsale_controller.presale()
@@ -45,15 +47,14 @@ class TestContract(AbstractTestContracts):
         # Setup dutch auction
         self.dutch_auction.setup(self.omega_token.address, self.crowdsale_controller.address)
         # Crowdsale controller is initialized with the correct values
-        self.assertEqual(self.crowdsale_controller.owner().decode(), accounts[owner].hex())
-        self.assertEqual(self.crowdsale_controller.wallet().decode(), self.multisig_wallet.address.hex())
-        self.assertEqual(self.crowdsale_controller.dutchAuction().decode(), self.dutch_auction.address.hex())
-        self.assertEqual(self.crowdsale_controller.presale().decode(), self.presale.address.decode())
-        self.assertEqual(self.crowdsale_controller.omegaToken().decode(), self.omega_token.address.decode())
+        self.assertEqual(utils.remove_0x_head(self.crowdsale_controller.owner()), accounts[owner].hex())
+        self.assertEqual(utils.remove_0x_head(self.crowdsale_controller.wallet()), self.multisig_wallet.address.hex())
+        self.assertEqual(self.crowdsale_controller.presale(), self.presale.address)
+        self.assertEqual(self.crowdsale_controller.omegaToken(), self.omega_token.address)
         self.assertEqual(self.crowdsale_controller.stage(), 0)
-        self.assertEqual(self.crowdsale_controller.openWindow().decode(), self.open_window.address.decode())
+        self.assertEqual(self.crowdsale_controller.openWindow(), self.open_window.address)
         # Raises if anyone but the owners tries to start the presale
-        self.assertRaises(TransactionFailed, self.crowdsale_controller.startPresale, sender=keys[3])
+        self.assert_tx_failed(lambda: self.crowdsale_controller.startPresale(sender=keys[3]))
         # Owner can start the presale
         self.crowdsale_controller.startPresale()
         # Crowdsale is now in presale stage
@@ -66,6 +67,7 @@ class TestContract(AbstractTestContracts):
         # Fails if dutch auction tries to start before presale is over
         start_auction_data = self.dutch_auction.translator.encode('startAuction', [])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, start_auction_data, sender=keys[wa_1])
+        self.s.mine()
         self.assertEqual(self.dutch_auction.stage(), 1)
         # Presale stores the presale percent in presaleAllocations and percentOfPresaleSold
         self.assertEqual(self.presale.presaleAllocations(accounts[buyer_1]), percent_of_presale_1)
@@ -83,18 +85,19 @@ class TestContract(AbstractTestContracts):
         change_ceiling_data = self.dutch_auction.translator.encode('changeSettings',
                                                                    [self.FUNDING_GOAL, self.PRICE_FACTOR])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, change_ceiling_data, sender=keys[wa_1])
+        self.s.mine()
         # Dutch auction cannow start
         start_auction_data = self.dutch_auction.translator.encode('startAuction', [])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, start_auction_data, sender=keys[wa_1])
         # Buyer 3 bids through the dutch auction on the 2nd day
-        self.s.block.number += self.BLOCKS_PER_DAY * 2
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY * 2
         # day_2
         price = self.dutch_auction.calcTokenPrice()
         buyer_3 = 5
         value_3 = 20000 * 10**18  # 20k Ether
         self.dutch_auction.bid(sender=keys[buyer_3], value=value_3)
         # Buyer 4 bids through the crowdsale controller on the 4th day
-        self.s.block.number += self.BLOCKS_PER_DAY * 2
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY * 2
         day_4_token_price = self.dutch_auction.calcTokenPrice()
         buyer_4 = 6
         value_4 = 20000 * 10**18  # 20k Ether
@@ -106,9 +109,11 @@ class TestContract(AbstractTestContracts):
         buyer_5 = 7
         value_5 = 30000 * 10**18  # 30k Ether
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_5], value=value_5)
+        # Set gas to 0 to avoid mining (simpler then messing with block numbers)
+        self.s.head_state.gas_used = 0
         # Check for refund to buyer 5
         refund_buyer_5 = (value_3 + value_4 + value_5) - self.FUNDING_GOAL
-        self.assertGreater(self.s.block.get_balance(accounts[buyer_5]), 0.98 * (value_5 + refund_buyer_5))
+        self.assertGreater(self.s.head_state.get_balance(accounts[buyer_5]), 0.98 * (value_5 + refund_buyer_5))
         # Make sure correct amounts have been kept in the crowdsale controller (for the presale) and dutch auction as well was transferred to the open window
         self.assertEqual(round(self.omega_token.balanceOf(self.dutch_auction.address)/10**24, 3), 3.524)
         self.assertEqual(round(self.omega_token.balanceOf(self.crowdsale_controller.address)/10**24, 3), 2)
@@ -121,7 +126,6 @@ class TestContract(AbstractTestContracts):
         # Now fillOrMarket sends Ether to the open window sale
         buyer_6 = 8
         value_6 =  500000 * 10**18  # 500 K Ether
-        self.s.block.set_balance(accounts[buyer_6], value_6 * 2)
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_6], value=value_6)
         # Open window receives buyer 6's purchase
         self.assertEqual(round(self.open_window.tokensBought(accounts[buyer_6]), -10), round(int(value_6/ self.open_window.price()*10**18), - 10))
@@ -130,21 +134,22 @@ class TestContract(AbstractTestContracts):
         buyer_7 = 9
         value_7 =  500000 * 10**18  # 500 K Ether
         tokensLeft = self.open_window.tokenSupply()
-        self.s.block.set_balance(accounts[buyer_7], value_7 * 2)
+        self.s.head_state.set_balance(accounts[buyer_7], value_7 * 2)
+        self.s.chain.state.set_balance(accounts[buyer_7], value_7 * 2)
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_7], value=value_7)
         # Token supply is 0 after open window sale ends
         self.assertEqual(self.open_window.tokenSupply(), 0)
         # Buyer 7 receives the refund
         refund_buyer_7 = value_7 - tokensLeft * self.open_window.price()/10**18
-        self.assertEqual(round(self.s.block.get_balance(accounts[buyer_7]), -9), round(int(value_7 + refund_buyer_7), -9))
-        self.assertEqual(round(self.s.block.get_balance(accounts[buyer_7]), -10), round(int(value_7 * 2 - self.open_window.tokensBought(accounts[buyer_7]) * self.open_window.price()/10**18), -10))
+        self.assertEqual(round(self.s.head_state.get_balance(accounts[buyer_7]), -9), round(int(value_7 + refund_buyer_7), -9))
+        self.assertEqual(round(self.s.head_state.get_balance(accounts[buyer_7]), -10), round(int(value_7 * 2 - self.open_window.tokensBought(accounts[buyer_7]) * self.open_window.price()/10**18), -10))
         # Crowdsale controller is at stage SaleEnded
         self.assertEqual(self.crowdsale_controller.stage(), 4)
         # Sale ended but trading is not possible yet, because there is one week pause after auction ends
-        self.s.block.timestamp += self.WAITING_PERIOD
-        self.assertRaises(TransactionFailed, self.crowdsale_controller.claimTokens, sender=keys[buyer_1])
+        self.s.head_state.timestamp += self.WAITING_PERIOD
+        self.assert_tx_failed(lambda: self.crowdsale_controller.claimTokens(sender=keys[buyer_1]))
         # Go past one week
-        self.s.block.timestamp += 1
+        self.s.head_state.timestamp += 1
         # Each buyer claims their tokens through the crowdsale controller
         self.crowdsale_controller.claimTokens(accounts[buyer_1])
         self.crowdsale_controller.claimTokens(accounts[buyer_2])
@@ -171,4 +176,3 @@ class TestContract(AbstractTestContracts):
         self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_6]), -10), buyer_6_tokens)
         buyer_7_tokens = round(int((value_7 - refund_buyer_7) *10**18/ self.open_window.price()), -10)
         self.assertEqual(round(self.omega_token.balanceOf(accounts[buyer_7]), -10), buyer_7_tokens)
-

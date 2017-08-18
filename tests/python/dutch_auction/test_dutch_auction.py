@@ -26,12 +26,15 @@ class TestContract(AbstractTestContracts):
         )
         self.multisig_wallet = self.create_contract('Wallets/MultiSigWallet.sol',
                                                     params=constructor_parameters)
+        self.s.mine()
         # Create dutch auction with ceiling of 2 billion and price factor of 200,000
         self.dutch_auction = self.create_contract('DutchAuction/DutchAuction.sol',
                                                   params=(self.multisig_wallet.address, 2000 * 10 ** 18, 200000))
+        # import pdb; pdb.set_trace()
         # Create crowdsale controller
         self.crowdsale_controller = self.create_contract('CrowdsaleController/CrowdsaleController.sol', 
                                                         params=(self.multisig_wallet.address, self.dutch_auction, 2500000000000000))
+        self.s.mine()
         # Get the omega token contract that the crowdsale controller deployed
         omega_token_address = self.crowdsale_controller.omegaToken()
         omega_token_abi = self.create_abi('Tokens/OmegaToken.sol')
@@ -53,64 +56,59 @@ class TestContract(AbstractTestContracts):
         # Start auction
         start_auction_data = self.dutch_auction.translator.encode('startAuction', [])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, start_auction_data, sender=keys[wa_1])
+        self.s.mine()
         # After auction started, funding goal cannot be changed anymore
         change_ceiling_data = self.dutch_auction.translator.encode('changeSettings', [1])
         self.multisig_wallet.submitTransaction(self.dutch_auction.address, 0, change_ceiling_data, sender=keys[wa_1])
+        self.s.mine()
         self.assertEqual(self.dutch_auction.ceiling(), self.FUNDING_GOAL)
         # Setups cannot be done twice
         self.assertRaises(TransactionFailed, self.dutch_auction.setup, self.omega_token.address)
         # Decrease per day
         decrease_per_day =  15097573839662448
         # Bidder 1 places a bid in the first block after auction starts
+        self.s.mine()
+        self.s.head_state.block_number = 3
         self.assertEqual(self.dutch_auction.calcTokenPrice(), int(self.PRICE_FACTOR))
         bidder_1 = 0
         value_1 = 20000 * 10**18  # 30k Ether
-        self.s.block.set_balance(accounts[bidder_1], value_1 * 2)
-        profiling = self.dutch_auction.bid(sender=keys[bidder_1], value=value_1, profiling=True)
-        self.assertLessEqual(profiling['gas'], self.MAX_GAS)
+        self.dutch_auction.bid(sender=keys[bidder_1], value=value_1)
         self.assertEqual(self.dutch_auction.calcStopPrice(), int(self.PRICE_FACTOR - decrease_per_day * 5))
         # A few blocks later
-        self.s.block.number += self.BLOCKS_PER_DAY*2
+        self.s.head_state.block_number += self.BLOCKS_PER_DAY*2
         # Stop price didn't change
         self.assertEqual(self.dutch_auction.calcStopPrice(), int(self.PRICE_FACTOR - decrease_per_day * 5))
         # Spender places a bid in the name of bidder 2
         bidder_2 = 1
         spender = 9
         value_2 = 20000 * 10**18  # 20k Ether
-        self.s.block.set_balance(accounts[spender], value_2*2)
         # Spender accidentally defines dutch auction contract as receiver
-        self.assertRaises(
-            TransactionFailed, self.dutch_auction.bid, self.dutch_auction.address, sender=keys[spender], value=value_2)
+        self.assert_tx_failed(lambda: self.dutch_auction.bid(self.dutch_auction.address, sender=keys[spender], value=value_1))
         # Spender accidentally defines token contract as receiver
-        self.assertRaises(
-            TransactionFailed, self.dutch_auction.bid, self.omega_token.address, sender=keys[spender], value=value_2)
+        self.assert_tx_failed(lambda: self.dutch_auction.bid(self.omega_token.address, sender=keys[spender], value=value_1))
         self.dutch_auction.bid(accounts[bidder_2], sender=keys[spender], value=value_2)
         # Bidder 3 places a bid
         bidder_3 = 2
         value_3 = 30000 * 10 ** 18  # 30k Ether
-        self.s.block.set_balance(accounts[bidder_3], value_3*2)
         profiling = self.dutch_auction.bid(sender=keys[bidder_3], value=value_3, profiling=True)
         refund_bidder_3 = (value_1 + value_2 + value_3) - self.FUNDING_GOAL
         # Bidder 3 gets refund; but paid gas so balance isn't exactly 0.75M Ether
-        self.assertGreater(self.s.block.get_balance(accounts[bidder_3]), 0.98 * (value_3 + refund_bidder_3))
+        self.assertGreater(self.s.head_state.get_balance(accounts[bidder_3]), 0.98 * (value_3 + refund_bidder_3))
         # Auction is over, no more bids are accepted
-        self.assertRaises(TransactionFailed, self.dutch_auction.bid, sender=keys[bidder_3], value=value_3)
+        self.assert_tx_failed(lambda: self.dutch_auction.bid(sender=keys[bidder_3], value=value_3))
         self.assertEqual(self.dutch_auction.finalPrice(), self.dutch_auction.calcTokenPrice())
         # There is no money left in the contract
-        self.assertEqual(self.s.block.get_balance(self.dutch_auction.address), 0)
+        self.assertEqual(self.s.head_state.get_balance(self.dutch_auction.address), 0)
         # Open window sale starts and ends
         buyer_4 = 7
         value_4 = 400000000 * 10**18  # 40 M Ether
-        self.s.block.set_balance(accounts[buyer_4], value_4 * 2)
         self.crowdsale_controller.fillOrMarket(sender=keys[buyer_4], value=value_4)
         # Auction ended but trading is not possible yet, because there is one week pause after auction ends
         # Waiting period will be handled in the crowdsale controller
         # Only crowdsale controller can claim tokens
-        self.assertRaises(TransactionFailed,
-                          self.dutch_auction.claimTokens,
-                          sender=keys[bidder_1])
+        self.assert_tx_failed(lambda: self.dutch_auction.claimTokens(sender=keys[bidder_1]))
         # Bidder 1 claim his tokens throught the crowdsale controller after the waiting period is over
-        self.s.block.timestamp += self.WAITING_PERIOD + 1
+        self.s.head_state.timestamp += self.WAITING_PERIOD + 1
         self.crowdsale_controller.claimTokens(accounts[bidder_1])
         self.assertEqual(round(int(self.omega_token.balanceOf(accounts[bidder_1])),-8),
                          round(int(value_1 * 10 ** 18 / self.dutch_auction.finalPrice()), -8))

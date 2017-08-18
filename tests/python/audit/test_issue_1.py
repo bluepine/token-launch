@@ -2,7 +2,11 @@ from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFa
 
 class TestContract(AbstractTestContracts):
     """
-    run test with python -m unittest tests.python.crowdsale_controller.test_crowdsale_controller
+    The file has to be placed in tests/python/audit/test_issue_1.py
+    run test with python -m unittest tests.python.audit.test_issue_1
+
+    This test is a copy of tests/python/crowdsale_controller/test_crowdsale_controller.py
+    except for the add triggering the issue 1
     """
 
     TOTAL_TOKENS = int(100000000 * 10**18)
@@ -42,6 +46,11 @@ class TestContract(AbstractTestContracts):
         self.omega_token = self.contract_at(omega_token_address, omega_token_abi)
         self.presale = self.contract_at(presale_address, presale_abi)
         self.open_window = self.contract_at(open_window_address, open_window_abi)
+
+        # This is the only change (issue 1)
+        # Transfer 1 token to the presale contract
+        start_attack_data = self.omega_token.translator.encode('transfer', [self.presale.address, 0x1])
+        self.multisig_wallet.submitTransaction(self.omega_token.address, 0, start_attack_data, sender=keys[wa_1])
 
         # Setup dutch auction
         self.dutch_auction.setup(self.omega_token.address, self.crowdsale_controller.address)

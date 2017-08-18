@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 
 /// @title Abstract dutch auction contract - Functions to be implemented by dutch auction contract
 /// @author Karl Floersh - <karl.floersch@consensys.net>

@@ -1,4 +1,4 @@
-from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFailed
+from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFailed, utils
 
 class TestContract(AbstractTestContracts):
     """
@@ -20,6 +20,7 @@ class TestContract(AbstractTestContracts):
                                                     params=constructor_parameters)
         dutch_auction_address = accounts[2]
         crowdsale_controller_address = accounts[0]
+        self.s.mine()
         # Create Omega token
         self.omega_token= self.create_contract('Tokens/OmegaToken.sol',
                                                   params=(dutch_auction_address, self.multisig_wallet.address))
@@ -28,9 +29,9 @@ class TestContract(AbstractTestContracts):
                                                   params=())
 
         self.assertEqual(self.presale.MAX_PERCENT_OF_PRESALE(), 100 * 10 **18);
-        self.assertEqual(self.presale.MAX_PERCENT_OF_SALE(), 63 * 10 **17);
         self.assertEqual(self.presale.percentOfPresaleSold(), 0);
-        self.assertEqual(self.presale.crowdsaleController().decode(), crowdsale_controller_address.hex())
+        # import pdb; pdb.set_trace()
+        self.assertEqual(utils.remove_0x_head(self.presale.crowdsaleController()), crowdsale_controller_address.hex())
         
         # Buyer can buy presale tokens as soon as it's initialized
         token_supply = 6300000 * 10 ** 18
@@ -40,6 +41,7 @@ class TestContract(AbstractTestContracts):
         buyer_1 = 4
         # 5.5%
         percent_of_presale_1 = 55 * 10 ** 17
+        self.s.mine()
         self.presale.usdContribution(accounts[buyer_1], percent_of_presale_1)
         self.assertEqual(self.presale.percentOfPresaleSold(), percent_of_presale_1)
         self.assertEqual(self.presale.presaleAllocations(accounts[buyer_1]), percent_of_presale_1)
@@ -56,7 +58,7 @@ class TestContract(AbstractTestContracts):
         self.omega_token.transfer(self.presale.address, token_supply, sender=keys[2])
         # Setup the presale
         self.presale.setupClaim(token_supply, self.omega_token.address)
-        self.assertEqual(self.presale.omegaToken().decode(), self.omega_token.address.hex());
+        self.assertEqual(utils.remove_0x_head(self.presale.omegaToken()), self.omega_token.address.hex());
         self.assertEqual(self.presale.totalSupply(), token_supply)
         # Buyers can claim there tokens (permissions will be in the crowdsale controller)
         self.presale.claimTokens(accounts[buyer_1])

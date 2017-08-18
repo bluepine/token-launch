@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import "Tokens/AbstractToken.sol";
 import "CrowdsaleController/AbstractCrowdsaleController.sol";
 import "Math/SafeMath.sol";
@@ -17,7 +17,6 @@ contract DutchAuction {
      *  Constants
      */
     uint256 constant public MAX_TOKENS_SOLD = 23700000 * 10**18; // 23.7 M
-    uint256 constant public AUCTION_LENGTH = 5 days;
 
     /*
      *  Storage
@@ -29,7 +28,6 @@ contract DutchAuction {
     uint256 public ceiling;
     uint256 public priceFactor;
     uint256 public startBlock;
-    uint256 public endTime;
     uint256 public totalReceived = 0;
     uint256 public finalPrice;
     mapping (address => uint) public bids;
@@ -46,43 +44,38 @@ contract DutchAuction {
      *  Modifiers
      */
     modifier atStage(Stages _stage) {
-        if (stage != _stage)
-            // Contract not in expected state
-            revert();
+        // Contract not in expected state
+        require(stage == _stage);
         _;
     }
 
     modifier isOwner() {
-        if (msg.sender != owner)
-            revert();
+        require(msg.sender == owner);
         _;
     }
 
     modifier isCrowdsaleController() {
-        if (msg.sender != address(crowdsaleController))
-            revert();
+        require(msg.sender == address(crowdsaleController));
         _;
     }
 
     modifier isWallet() {
-        if (msg.sender != wallet)
-            // Only wallet is allowed to proceed
-            revert();
+        // Only wallet is allowed to proceed
+        require(msg.sender == wallet);
         _;
     }
 
     modifier isValidPayload(address receiver) {
-        if (msg.data.length != 4 && msg.data.length != 36
-            || receiver == address(this)
-            || receiver == address(omegaToken))
-            // Payload length has to have correct length and receiver should not be dutch auction or omega token contract
-            revert();
+         // Payload length has to have correct length and receiver should not be dutch auction or omega token contract
+        require((msg.data.length == 4 || msg.data.length == 36)
+            && receiver != address(this)
+            && receiver != address(omegaToken));
         _;
     }
 
     modifier timedTransitions() {
+        // Ends the sale after the stop price has been reached
         if (stage == Stages.AuctionStarted && calcTokenPrice() <= calcStopPrice())
-            // Ends the sale after the stop price has been reached
             finalizeSale();
         _;
     }
@@ -97,10 +90,8 @@ contract DutchAuction {
     function DutchAuction(address _wallet, uint256 _ceiling, uint256 _priceFactor)
         public
     {
-        if (_wallet == 0x0 || _ceiling == 0 || 
-            _priceFactor == 0)
-            // Arguments are null
-            revert();
+        // Check for null arguments
+        require(_wallet != 0x0 && _ceiling != 0 && _priceFactor != 0);
         owner = msg.sender;
         wallet = _wallet;
         ceiling = _ceiling;
@@ -116,14 +107,12 @@ contract DutchAuction {
         isOwner
         atStage(Stages.AuctionDeployed)
     {
-        if (address(_omegaToken) == 0x0 || address(_crowdsaleController) == 0x0)
-            // Argument is null
-            revert();
+        // Check for null arguments
+        require(address(_omegaToken) != 0x0 && address(_crowdsaleController) != 0x0);
         omegaToken = _omegaToken;
         crowdsaleController = _crowdsaleController;
         // Validate token balance
-        if (omegaToken.balanceOf(this) != MAX_TOKENS_SOLD)
-            revert();
+        require(omegaToken.balanceOf(this) >= MAX_TOKENS_SOLD);
         stage = Stages.AuctionSetUp;
     }
 
@@ -134,8 +123,7 @@ contract DutchAuction {
         atStage(Stages.AuctionSetUp)
     {   
         // Makes sure that the presale has already occurred
-        if (crowdsaleController.stage() != CrowdsaleController.Stages.MainSale) 
-            revert();
+        require(crowdsaleController.stage() == CrowdsaleController.Stages.MainSale);
         stage = Stages.AuctionStarted;
         startBlock = block.number;
     }
@@ -148,6 +136,7 @@ contract DutchAuction {
         isWallet
         atStage(Stages.AuctionSetUp)
     {
+        require(_ceiling > 0 && _priceFactor > 0);
         ceiling = _ceiling;
         priceFactor = _priceFactor;
     }

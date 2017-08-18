@@ -1,6 +1,6 @@
-pragma solidity 0.4.11;
-import "Tokens/AbstractToken.sol";
-import "Math/SafeMath.sol";
+pragma solidity 0.4.15;
+import 'Tokens/AbstractToken.sol';
+import 'Math/SafeMath.sol';
 
 /// @title Standard token contract - Standard token interface implementation
 contract StandardToken is Token {
@@ -8,8 +8,8 @@ contract StandardToken is Token {
     /*
      *  Storage
      */
-    mapping (address => uint) balances;
-    mapping (address => mapping (address => uint)) allowances;
+    mapping (address => uint) public balances;
+    mapping (address => mapping (address => uint)) public allowances;
     uint public totalSupply;
 
     /*
@@ -56,8 +56,7 @@ contract StandardToken is Token {
         public
         returns (bool)
     {
-        if ((value == 0) || (allowances[msg.sender][_spender] == 0))
-            revert();
+        require((value != 0) && (allowances[msg.sender][_spender] != 0));
         allowances[msg.sender][_spender] = value;
         Approval(msg.sender, _spender, value);
         return true;

@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import 'Tokens/OmegaToken.sol';
 
 /// @title Abstract presale contract
@@ -8,7 +8,7 @@ contract Presale {
      *  Public functions
      */
     function Presale() public;
-    function setupClaim(uint256 _totalSupply, Token _omegaToken) public;
-    function usdContribution(address buyer, uint256 presalePercent) public;
-    function claimTokens(address receiver) public;
+    function setupClaim(uint256 _totalSupply, Token _omegaToken) external;
+    function usdContribution(address buyer, uint256 presalePercent) external;
+    function claimTokens(address receiver) external;
 }

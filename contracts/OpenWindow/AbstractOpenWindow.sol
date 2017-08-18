@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 import "Tokens/AbstractToken.sol";
 
 /// @title Abstract open window contract

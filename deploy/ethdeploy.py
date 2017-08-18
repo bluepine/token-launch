@@ -2,7 +2,7 @@ from web3 import Web3, KeepAliveRPCProvider, IPCProvider
 from ethereum.abi import ContractTranslator
 from ethereum.transactions import Transaction
 from ethereum.utils import privtoaddr
-from ethereum import _solidity
+from ethereum.tools import _solidity
 import click
 import time
 import json

@@ -1,4 +1,4 @@
-pragma solidity 0.4.11;
+pragma solidity 0.4.15;
 
 /// @title Multisignature wallet - Allows multiple parties to agree on transactions before execution
 /// @author Stefan George - <stefan@gnosis.pm>
@@ -43,65 +43,55 @@ contract MultiSigWallet {
      *  Modifiers
      */
     modifier onlyWallet() {
-        if (msg.sender != address(this))
-            revert();
+        require(msg.sender == address(this));
         _;
     }
 
     modifier ownerDoesNotExist(address owner) {
-        if (isOwner[owner])
-            revert();
+        require(!isOwner[owner]);
         _;
     }
 
     modifier ownerExists(address owner) {
-        if (!isOwner[owner])
-            revert();
+        require(isOwner[owner]);
         _;
     }
 
     modifier transactionExists(uint transactionId) {
-        if (transactions[transactionId].destination == 0)
-            revert();
+        require(transactions[transactionId].destination != 0);
         _;
     }
 
     modifier confirmed(uint transactionId, address owner) {
-        if (!confirmations[transactionId][owner])
-            revert();
+        require(confirmations[transactionId][owner]);
         _;
     }
 
     modifier notConfirmed(uint transactionId, address owner) {
-        if (confirmations[transactionId][owner])
-            revert();
+        require(!confirmations[transactionId][owner]);
         _;
     }
 
     modifier executable(uint transactionId) {
-        if (!isConfirmed(transactionId))
-            revert();
+        require(isConfirmed(transactionId));
         _;
     }
 
     modifier notExecuted(uint transactionId) {
-        if (transactions[transactionId].executed)
-            revert();
+        require(!transactions[transactionId].executed);
         _;
     }
 
     modifier notNull(address _address) {
-        if (_address == 0)
-            revert();
+        require(_address != 0);
         _;
     }
 
     modifier validRequirement(uint ownerCount, uint _required) {
-        if (   ownerCount > MAX_OWNER_COUNT
-            || _required > ownerCount
-            || _required == 0
-            || ownerCount == 0)
-            revert();
+        require(ownerCount <= MAX_OWNER_COUNT
+            && _required <= ownerCount
+            && _required != 0
+            && ownerCount != 0);
         _;
     }
 
@@ -124,8 +114,7 @@ contract MultiSigWallet {
         validRequirement(_owners.length, _required)
     {
         for (uint i=0; i<_owners.length; i++) {
-            if (isOwner[_owners[i]] || _owners[i] == 0)
-                revert();
+            require(!isOwner[_owners[i]] && _owners[i] != 0);
             isOwner[_owners[i]] = true;
         }
         owners = _owners;
@@ -203,6 +192,7 @@ contract MultiSigWallet {
     /// @return Returns transaction ID
     function submitTransaction(address destination, uint value, bytes data)
         public
+        ownerExists(msg.sender)
         returns (uint transactionId)
     {
         transactionId = addTransaction(destination, value, data);
@@ -244,13 +234,13 @@ contract MultiSigWallet {
         notExecuted(transactionId)
         executable(transactionId)
     {
-        Transaction tx = transactions[transactionId];
-        tx.executed = true;
-        if (tx.destination.call.value(tx.value)(tx.data))
+        Transaction storage transaction = transactions[transactionId];
+        transaction.executed = true;
+        if (transaction.destination.call.value(transaction.value)(transaction.data))
             Execution(transactionId);
         else {
             ExecutionFailure(transactionId);
-            tx.executed = false;
+            transaction.executed = false;
         }
     }
 
@@ -368,11 +358,12 @@ contract MultiSigWallet {
         constant
         returns (uint[] _transactionIds)
     {
+        require(pending || executed);
         uint[] memory transactionIdsTemp = new uint[](transactionCount);
         uint count = 0;
         uint i;
         for (i=0; i<transactionCount; i++)
-            if (   pending && !transactions[i].executed
+            if (pending && !transactions[i].executed
                 || executed && transactions[i].executed)
             {
                 transactionIdsTemp[count] = i;

@@ -1,4 +1,4 @@
-from ..abstract_test import AbstractTestContracts, accounts, keys, TransactionFailed
+from ..abstract_test import AbstractTestContracts, utils, accounts, keys, TransactionFailed
 
 class TestContract(AbstractTestContracts):
     """
@@ -22,6 +22,7 @@ class TestContract(AbstractTestContracts):
         )
         self.multisig_wallet = self.create_contract('Wallets/MultiSigWallet.sol',
                                                     params=constructor_parameters)
+        self.s.mine()
         self.omega_token= self.create_contract('Tokens/OmegaToken.sol',
                                                   params=(dutch_auction_address, self.multisig_wallet.address))
         self.open_window = self.create_contract('OpenWindow/OpenWindow.sol')
@@ -30,15 +31,17 @@ class TestContract(AbstractTestContracts):
         # Setup the open window sale
         self.open_window.setupSale(token_supply, price, self.multisig_wallet.address, self.omega_token.address)
         # Open window contract initializes with the correct values
-        self.assertEqual(self.open_window.crowdsaleController().decode(), crowdsale_controller_address.hex())
-        self.assertEqual(self.open_window.wallet().decode(), self.multisig_wallet.address.hex())
+        self.assertEqual(utils.remove_0x_head(self.open_window.crowdsaleController()), crowdsale_controller_address.hex())
+        self.assertEqual(utils.remove_0x_head(self.open_window.wallet()), self.multisig_wallet.address.hex())
         self.assertEqual(self.open_window.tokenSupply(), token_supply)
         self.assertEqual(self.open_window.price(), price)
+        self.s.mine()
         # Buyer 1 can buy tokens (through crowdsale controller)
         # max eth is 14,200,000
         bidder_1 = 2
         value_1 = 60000 * 10 ** 18 # 60k Ether
         self.open_window.buy(accounts[bidder_1], value=value_1)
+        self.s.mine()
         # Token supply decreases
         self.assertEqual(self.open_window.tokenSupply(), token_supply - (60000 * 10 ** 20))
         # Tokens are stored in tokens bought mapping until they're claimed
@@ -46,21 +49,20 @@ class TestContract(AbstractTestContracts):
         # Token price doesn't change
         self.assertEqual(self.open_window.price(), price)
         # Only the crowdsale controller can buy tokens
+        self.s.mine()
         self.assertRaises(
             TransactionFailed, self.open_window.buy, accounts[bidder_1], sender=keys[bidder_1], value=value_1)
+        self.s.mine()
         # Buyer 2 buys tokens through the crowdsale controller finishing the token sale
         bidder_2 = 3
         value_2 = 120000 * 10 ** 18 # 120k Ether
         # Set crowdsale controlle balance to value_2, accounts for gas costs
-        self.s.block.set_balance(accounts[bidder_2], 0)
+        self.s.head_state.set_balance(accounts[bidder_2], 0)
         self.open_window.buy(accounts[bidder_2], value=value_2)
         # Open window gives a refund if when it runs out of tokens to sell
-        self.assertEqual(self.s.block.get_balance(accounts[bidder_2]), 38000 * 10 ** 18)
+        self.assertEqual(self.s.head_state.get_balance(accounts[bidder_2]), 38000 * 10 ** 18)
         # Token supply decreases to 0
         self.assertEqual(self.open_window.tokenSupply(), 0)
         self.assertEqual(self.open_window.tokensBought(accounts[bidder_2]), 8200000 * 10 ** 18)
         # Token price doesn't change
         self.assertEqual(self.open_window.price(), price)
-        # Stage is set to SaleEnded
-        # FIX THIS
-        # self.assertEqual(self.open_window.stage(), 1)
